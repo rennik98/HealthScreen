@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import MiniCogQuiz from './MiniCogQuiz';
 import TMSEQuiz from './TMSEQuiz';
+import MoCAQuiz from './MoCAQuiz';
 import logoDementia from './assets/logo-dementia.svg';
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -174,11 +175,15 @@ const PatientForm = ({ quizType, onConfirm, onCancel }) => {
     onConfirm({ name: name.trim(), age: parseInt(age) });
   };
 
-  const typeLabel = quizType === 'minicog' ? 'Mini-Cog™' : 'TMSE';
-  const typeColor = quizType === 'minicog' ? 'var(--mint-primary)' : 'var(--mint-blue)';
+  const typeLabel = quizType === 'minicog' ? 'Mini-Cog™' : quizType === 'moca' ? 'MoCA' : 'TMSE';
+  const typeColor = quizType === 'minicog' ? 'var(--mint-primary)' : quizType === 'moca' ? '#8b5cf6' : 'var(--mint-blue)';
   const typeGrad  = quizType === 'minicog'
     ? 'linear-gradient(135deg, var(--mint-primary), var(--mint-primary-l))'
+    : quizType === 'moca'
+    ? 'linear-gradient(135deg, #8b5cf6, #a78bfa)'
     : 'linear-gradient(135deg, var(--mint-blue), #60a5fa)';
+  const typeIcon = quizType === 'minicog' ? '⚡' : quizType === 'moca' ? '📋' : '🧠';
+  const typeBg   = quizType === 'minicog' ? 'var(--mint-primary-xl)' : quizType === 'moca' ? '#f3e8ff' : 'var(--mint-blue-xl)';
 
   return (
     <div style={{
@@ -196,10 +201,10 @@ const PatientForm = ({ quizType, onConfirm, onCancel }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
           <div style={{
             width: 42, height: 42, borderRadius: 12,
-            background: quizType === 'minicog' ? 'var(--mint-primary-xl)' : 'var(--mint-blue-xl)',
+            background: typeBg,
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0,
           }}>
-            {quizType === 'minicog' ? '⚡' : '🧠'}
+            {typeIcon}
           </div>
           <div>
             <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--mint-text)' }}>ข้อมูลผู้เข้ารับการทดสอบ</div>
@@ -272,15 +277,18 @@ const PatientForm = ({ quizType, onConfirm, onCancel }) => {
 const ResultSummaryModal = ({ result, patient, onClose, onViewAll }) => {
   if (!result) return null;
   const isMini   = result.type === 'Mini-Cog';
+  const isMoCA   = result.type === 'MoCA';
   const impaired = result.impaired;
-  const accent   = isMini ? 'var(--mint-primary)' : 'var(--mint-blue)';
+  const accent   = isMini ? 'var(--mint-primary)' : isMoCA ? '#8b5cf6' : 'var(--mint-blue)';
   const grad     = isMini
     ? 'linear-gradient(135deg, var(--mint-primary), var(--mint-primary-l))'
+    : isMoCA
+    ? 'linear-gradient(135deg, #8b5cf6, #a78bfa)'
     : 'linear-gradient(135deg, var(--mint-blue), #60a5fa)';
   const pct = (result.totalScore / result.maxScore) * 100;
   const circ = 2 * Math.PI * 52;
 
-  const tmseRows = result.breakdown ? [
+  const tmseRows = result.breakdown && !isMini && !isMoCA ? [
     { label: 'Orientation',  score: result.breakdown.orientation,  max: 6  },
     { label: 'Registration', score: result.breakdown.registration, max: 3  },
     { label: 'Attention',    score: result.breakdown.attention,    max: 5  },
@@ -289,9 +297,19 @@ const ResultSummaryModal = ({ result, patient, onClose, onViewAll }) => {
     { label: 'Recall',       score: result.breakdown.recall,       max: 3  },
   ] : [];
 
-  const miniRows = result.breakdown ? [
+  const miniRows = result.breakdown && isMini ? [
     { label: 'Clock Drawing', score: result.breakdown.clockDrawing, max: 2 },
     { label: 'Word Recall',   score: result.breakdown.wordRecall,   max: 3 },
+  ] : [];
+
+  const mocaRows = result.breakdown && isMoCA ? [
+    { label: 'Visuospatial/Exec', score: result.breakdown.visuospatial,   max: 5 },
+    { label: 'Naming',            score: result.breakdown.naming,          max: 3 },
+    { label: 'Attention',         score: result.breakdown.attention,       max: 6 },
+    { label: 'Language',          score: result.breakdown.language,        max: 3 },
+    { label: 'Abstraction',       score: result.breakdown.abstraction,     max: 2 },
+    { label: 'Delayed Recall',    score: result.breakdown.delayedRecall,   max: 5 },
+    { label: 'Orientation',       score: result.breakdown.orientation,     max: 6 },
   ] : [];
 
   return (
@@ -311,7 +329,7 @@ const ResultSummaryModal = ({ result, patient, onClose, onViewAll }) => {
           <div style={{ position: 'absolute', right: -20, top: -20, opacity: 0.12 }}><Cross s={120} c="white" /></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
-              {isMini ? '⚡' : '🧠'}
+              {isMini ? '⚡' : isMoCA ? '📋' : '🧠'}
             </div>
             <div>
               <p style={{ fontSize: 16, fontWeight: 800, color: 'white' }}>ผลการประเมิน {result.type}</p>
@@ -342,6 +360,8 @@ const ResultSummaryModal = ({ result, patient, onClose, onViewAll }) => {
                 <p style={{ fontSize: 12, color: impaired ? '#b45309' : '#047857', lineHeight: 1.5 }}>
                   {isMini
                     ? (impaired ? 'คะแนน ≤ 3 → มีแนวโน้ม Cognitive Impairment' : 'คะแนน > 3 → ไม่พบสัญญาณผิดปกติ')
+                    : isMoCA
+                    ? (impaired ? 'คะแนน < 25 → มีแนวโน้ม Cognitive Impairment' : 'คะแนน ≥ 25 → ไม่พบสัญญาณผิดปกติ')
                     : (impaired ? 'คะแนน < 24 → มีแนวโน้ม Cognitive Impairment' : 'คะแนน ≥ 24 → ไม่พบสัญญาณผิดปกติ')}
                 </p>
               </div>
@@ -373,11 +393,11 @@ const ResultSummaryModal = ({ result, patient, onClose, onViewAll }) => {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {tmseRows.map(({ label, score, max }) => (
+                {(isMoCA ? mocaRows : tmseRows).map(({ label, score, max }) => (
                   <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 12, color: 'var(--mint-text2)', width: 82, flexShrink: 0 }}>{label}</span>
+                    <span style={{ fontSize: 12, color: 'var(--mint-text2)', width: isMoCA ? 120 : 82, flexShrink: 0 }}>{label}</span>
                     <div style={{ flex: 1, height: 7, borderRadius: 4, background: 'var(--mint-border2)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 4, background: `linear-gradient(90deg, ${accent}, #60a5fa)`, width: `${(score/max)*100}%` }}/>
+                      <div style={{ height: '100%', borderRadius: 4, background: isMoCA ? 'linear-gradient(90deg, #8b5cf6, #a78bfa)' : `linear-gradient(90deg, ${accent}, #60a5fa)`, width: `${(score/max)*100}%` }}/>
                     </div>
                     <span style={{ fontSize: 12, fontWeight: 700, color: accent, width: 36, textAlign: 'right' }}>{score}/{max}</span>
                   </div>
@@ -403,12 +423,12 @@ const ResultSummaryModal = ({ result, patient, onClose, onViewAll }) => {
 /* ── CSV Export ──────────────────────────────────────────────────────────────*/
 function exportCSV(results) {
   const BOM = '\uFEFF';
-  const headers = ['ลำดับ','ชื่อ-นามสกุล','อายุ','ประเภทแบบทดสอบ','คะแนนรวม','คะแนนสูงสุด','การแปลผล','วันที่/เวลา','เวลาที่ใช้ (วินาที)','เวลาที่ใช้ (นาที:วินาที)','Clock Drawing (Mini-Cog)','Word Recall (Mini-Cog)','Orientation (TMSE)','Registration (TMSE)','Attention (TMSE)','Calculation (TMSE)','Language (TMSE)','Recall (TMSE)'];
+  const headers = ['ลำดับ','ชื่อ-นามสกุล','อายุ','ประเภทแบบทดสอบ','คะแนนรวม','คะแนนสูงสุด','การแปลผล','วันที่/เวลา','เวลาที่ใช้ (วินาที)','เวลาที่ใช้ (นาที:วินาที)','Clock Drawing (Mini-Cog)','Word Recall (Mini-Cog)','Orientation (TMSE)','Registration (TMSE)','Attention (TMSE)','Calculation (TMSE)','Language (TMSE)','Recall (TMSE)','Visuospatial (MoCA)','Naming (MoCA)','Attention (MoCA)','Language (MoCA)','Abstraction (MoCA)','Delayed Recall (MoCA)','Orientation (MoCA)'];
   const rows = results.map((r, i) => {
     const b = r.breakdown || {};
     const sec = r.duration ?? 0;
     const fmt = `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;
-    return [i+1, r.name, r.age, r.type, r.totalScore, r.maxScore, r.impaired ? 'มีภาวะ Cognitive Impairment' : 'อยู่ในเกณฑ์ปกติ', r.datetime, sec, fmt, b.clockDrawing??'', b.wordRecall??'', b.orientation??'', b.registration??'', b.attention??'', b.calculation??'', b.language??'', b.recall??'']
+    return [i+1, r.name, r.age, r.type, r.totalScore, r.maxScore, r.impaired ? 'มีภาวะ Cognitive Impairment' : 'อยู่ในเกณฑ์ปกติ', r.datetime, sec, fmt, b.clockDrawing??'', b.wordRecall??'', b.orientation??'', b.registration??'', b.attention??'', b.calculation??'', b.language??'', b.recall??'', b.visuospatial??'', b.naming??'', r.type==='MoCA'?(b.attention??''):'', r.type==='MoCA'?(b.language??''):'', b.abstraction??'', b.delayedRecall??'', r.type==='MoCA'?(b.orientation??''):'']
       .map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',');
   });
   const csv  = BOM + [headers.map(h => '"'+h+'"').join(','), ...rows].join('\r\n');
@@ -419,12 +439,7 @@ function exportCSV(results) {
   a.click(); URL.revokeObjectURL(url);
 }
 
-/* ── Google Sheets helpers ───────────────────────────────────────────────────
-   KEY RULES for Apps Script fetch:
-   • POST: no Content-Type header (avoids CORS preflight)
-   • GET:  append a cache-busting param so browser doesn't serve stale response
-   • Both use redirect: 'follow' — Apps Script redirects once before responding
-────────────────────────────────────────────────────────────────────────────*/
+/* ── Google Sheets helpers ───────────────────────────────────────────────────*/
 const isConfigured = () => SCRIPT_URL !== 'YOUR_APPS_SCRIPT_DEPLOYMENT_URL_HERE';
 
 async function saveToSheets(record) {
@@ -433,7 +448,6 @@ async function saveToSheets(record) {
     method: 'POST',
     redirect: 'follow',
     body: JSON.stringify(record),
-    // ⚠️ Do NOT set Content-Type — it triggers CORS preflight which Apps Script cannot handle
   });
   const text = await res.text();
   try { return JSON.parse(text); } catch { return { success: false, error: text }; }
@@ -441,7 +455,6 @@ async function saveToSheets(record) {
 
 async function loadFromSheets() {
   if (!isConfigured()) return [];
-  // Cache-bust to prevent browser returning stale data
   const url = `${SCRIPT_URL}?t=${Date.now()}`;
   const res = await fetch(url, { redirect: 'follow' });
   const text = await res.text();
@@ -456,9 +469,8 @@ async function loadFromSheets() {
     totalScore: Number(row[4]),
     maxScore:   Number(row[5]),
     impaired:   String(row[6]).includes('Impairment'),
-   datetime: (() => {
+    datetime: (() => {
       const raw = String(row[7] ?? '');
-      // Case 1: ISO string from Sheets — parse with Date to get local time
       if (/\d{4}-\d{2}-\d{2}T/.test(raw)) {
         const d = new Date(raw);
         if (!isNaN(d)) {
@@ -471,7 +483,6 @@ async function loadFromSheets() {
           return `${day} ${month} ${year} ${hh}:${mm}`;
         }
       }
-      // Case 2: Already Thai text — return as-is
       return raw;
     })(),
     duration:   Number(row[8]) || 0,
@@ -484,12 +495,21 @@ async function loadFromSheets() {
       calculation:   row[14] !== '' ? Number(row[14]) : undefined,
       language:      row[15] !== '' ? Number(row[15]) : undefined,
       recall:        row[16] !== '' ? Number(row[16]) : undefined,
+      visuospatial:  row[17] !== '' && row[17] !== undefined ? Number(row[17]) : undefined,
+      naming:        row[18] !== '' && row[18] !== undefined ? Number(row[18]) : undefined,
+      abstraction:   row[21] !== '' && row[21] !== undefined ? Number(row[21]) : undefined,
+      delayedRecall: row[22] !== '' && row[22] !== undefined ? Number(row[22]) : undefined,
     },
   }));
 }
 
 /* ── Results Page ────────────────────────────────────────────────────────────*/
-const ResultsPage = ({ results, onExport, onRefresh, loading }) => (
+const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
+  const getTypeColor = (type) => type === 'Mini-Cog' ? 'var(--mint-primary)' : type === 'MoCA' ? '#8b5cf6' : 'var(--mint-blue)';
+  const getTypeBg    = (type) => type === 'Mini-Cog' ? 'var(--mint-primary-xl)' : type === 'MoCA' ? '#f3e8ff' : 'var(--mint-blue-xl)';
+  const getTypeBorder = (type) => type === 'MoCA' ? '#c4b5fd' : type === 'Mini-Cog' ? 'var(--mint-border)' : '#bfdbfe';
+
+  return (
   <div className="fade-up">
     <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24, gap: 12 }}>
       <div>
@@ -521,7 +541,6 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => (
       </div>
     </div>
 
-    {/* Sheets info banner */}
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: 'white', border: '1px solid var(--mint-border2)', borderRadius: 14, marginBottom: 20, boxShadow: 'var(--shadow-sm)' }}>
       <span style={{ fontSize: 20 }}>📊</span>
       <div style={{ flex: 1 }}>
@@ -532,9 +551,7 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => (
 
     {loading ? (
       <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', border: '1.5px solid var(--mint-border)', borderRadius: 22 }}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-          <Spinner size={36} />
-        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><Spinner size={36} /></div>
         <p style={{ fontSize: 14, color: 'var(--mint-muted)' }}>กำลังโหลดข้อมูลจาก Google Sheets…</p>
       </div>
     ) : results.length === 0 ? (
@@ -564,9 +581,9 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => (
                   <td style={{ padding: '11px 14px', fontWeight: 700, color: 'var(--mint-text)' }}>{r.name}</td>
                   <td style={{ padding: '11px 14px', color: 'var(--mint-text2)' }}>{r.age} ปี</td>
                   <td style={{ padding: '11px 14px' }}>
-                    <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: r.type === 'Mini-Cog' ? 'var(--mint-primary-xl)' : 'var(--mint-blue-xl)', color: r.type === 'Mini-Cog' ? 'var(--mint-primary)' : 'var(--mint-blue)' }}>{r.type}</span>
+                    <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: getTypeBg(r.type), color: getTypeColor(r.type) }}>{r.type}</span>
                   </td>
-                  <td style={{ padding: '11px 14px', fontWeight: 800, fontSize: 15, color: r.impaired ? 'var(--mint-warn)' : 'var(--mint-primary)' }}>
+                  <td style={{ padding: '11px 14px', fontWeight: 800, fontSize: 15, color: r.impaired ? 'var(--mint-warn)' : getTypeColor(r.type) }}>
                     {r.totalScore}<span style={{ fontSize: 11, fontWeight: 400, color: 'var(--mint-muted)' }}>/{r.maxScore}</span>
                   </td>
                   <td style={{ padding: '11px 14px' }}>
@@ -588,9 +605,10 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => (
           {results.map((r, i) => {
             const b = r.breakdown || {};
             const isMini = r.type === 'Mini-Cog';
-            const color  = isMini ? 'var(--mint-primary)' : 'var(--mint-blue)';
+            const isMoCA = r.type === 'MoCA';
+            const color  = getTypeColor(r.type);
             return (
-              <div key={i} style={{ background: 'var(--mint-surface2)', border: '1px solid ' + (isMini ? 'var(--mint-border)' : '#bfdbfe'), borderRadius: 14, padding: '14px' }}>
+              <div key={i} style={{ background: 'var(--mint-surface2)', border: '1px solid ' + getTypeBorder(r.type), borderRadius: 14, padding: '14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                   <div style={{ minWidth: 0 }}>
                     <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--mint-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</p>
@@ -604,6 +622,15 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => (
                       <div key={lb} style={{ flex: 1, textAlign: 'center', padding: '6px', background: 'white', borderRadius: 8, fontSize: 11 }}>
                         <div style={{ fontWeight: 700, color }}>{sc}/{mx}</div>
                         <div style={{ color: 'var(--mint-muted)', marginTop: 1 }}>{lb}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : isMoCA ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 4 }}>
+                    {[['V/E',b.visuospatial,5],['Nam',b.naming,3],['Att',b.attention,6],['Lng',b.language,3],['Abs',b.abstraction,2],['DRc',b.delayedRecall,5],['Ori',b.orientation,6]].map(([lb,sc,mx]) => (
+                      <div key={lb} style={{ textAlign: 'center', padding: '4px', background: 'white', borderRadius: 6, fontSize: 10 }}>
+                        <div style={{ fontWeight: 700, color }}>{sc !== undefined ? sc : '–'}/{mx}</div>
+                        <div style={{ color: 'var(--mint-muted)' }}>{lb}</div>
                       </div>
                     ))}
                   </div>
@@ -624,7 +651,8 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => (
       </div>
     )}
   </div>
-);
+  );
+};
 
 /* ── App ─────────────────────────────────────────────────────────────────────*/
 export default function App() {
@@ -654,7 +682,6 @@ export default function App() {
     }
   };
 
-  // Load on first mount
   useEffect(() => { loadResults(); }, []);
 
   const handleTabChange = (newTab) => {
@@ -686,11 +713,9 @@ export default function App() {
       datetime,
     };
 
-    // Show result modal immediately (optimistic)
     setPendingResult({ ...scoreData, datetime });
     setQuiz(null);
 
-    // Save in background
     setSaving(true);
     try {
       const res = await saveToSheets(newRecord);
@@ -702,7 +727,7 @@ export default function App() {
       }
     } catch (err) {
       console.error('Save error:', err);
-      setAllResults(prev => [...prev, newRecord]); // keep locally
+      setAllResults(prev => [...prev, newRecord]);
       showToast('บันทึกไม่สำเร็จ — ตรวจสอบ SCRIPT_URL และ deployment', 'error');
     } finally {
       setSaving(false);
@@ -715,6 +740,7 @@ export default function App() {
 
   if (quiz === 'minicog') return <MiniCogQuiz patient={patient} onBack={handleBack} onComplete={handleComplete} />;
   if (quiz === 'tmse')    return <TMSEQuiz    patient={patient} onBack={handleBack} onComplete={handleComplete} />;
+  if (quiz === 'moca')    return <MoCAQuiz    patient={patient} onBack={handleBack} onComplete={handleComplete} />;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -724,7 +750,6 @@ export default function App() {
       {pendingResult && <ResultSummaryModal result={pendingResult} patient={patient} onClose={handleSummaryClose} onViewAll={handleSummaryViewAll} />}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
-      {/* Saving indicator */}
       {saving && (
         <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 500, background: 'white', borderRadius: 14, padding: '10px 20px', boxShadow: '0 8px 30px rgba(0,0,0,0.15)', border: '1px solid var(--mint-border)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <Spinner size={16} />
@@ -732,7 +757,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Config warning */}
       {!isConfigured() && (
         <div style={{ background: '#fff7ed', borderBottom: '1px solid #fcd34d', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
           <span>⚠️</span>
@@ -786,7 +810,7 @@ export default function App() {
                   มาตรฐานสากล
                 </h1>
                 <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.8, marginBottom: 28, maxWidth: 420 }}>
-                  คัดกรองภาวะสมองเสื่อมเบื้องต้นด้วยแบบทดสอบ Mini-Cog และ TMSE ที่ผ่านการรับรองทางการแพทย์
+                  คัดกรองภาวะสมองเสื่อมเบื้องต้นด้วยแบบทดสอบ Mini-Cog, TMSE และ MoCA ที่ผ่านการรับรองทางการแพทย์
                 </p>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 28 }}>
                   <button onClick={() => setShowForm('minicog')} style={{ padding: '12px 22px', background: 'linear-gradient(135deg, var(--mint-primary), var(--mint-primary-l))', color: 'white', border: 'none', borderRadius: 13, fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 6px 20px rgba(14,159,142,0.35)', transition: 'all 0.2s' }}
@@ -799,6 +823,11 @@ export default function App() {
                     onMouseOut={e  => { e.currentTarget.style.background='var(--mint-blue-xl)'; e.currentTarget.style.transform='translateY(0)'; }}>
                     เริ่ม TMSE →
                   </button>
+                  <button onClick={() => setShowForm('moca')} style={{ padding: '12px 22px', background: '#f3e8ff', color: '#8b5cf6', border: '1.5px solid #c4b5fd', borderRadius: 13, fontSize: 14, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
+                    onMouseOver={e => { e.currentTarget.style.background='#ede9fe'; e.currentTarget.style.transform='translateY(-2px)'; }}
+                    onMouseOut={e  => { e.currentTarget.style.background='#f3e8ff'; e.currentTarget.style.transform='translateY(0)'; }}>
+                    เริ่ม MoCA →
+                  </button>
                   {allResults.length > 0 && (
                     <button onClick={() => handleTabChange('results')} style={{ padding: '12px 18px', background: 'white', color: 'var(--mint-text)', border: '1.5px solid var(--mint-border)', borderRadius: 13, fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: 'var(--shadow-sm)', transition: 'all 0.2s' }}
                       onMouseOver={e => { e.currentTarget.style.boxShadow='var(--shadow-md)'; e.currentTarget.style.transform='translateY(-2px)'; }}
@@ -809,7 +838,7 @@ export default function App() {
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <Pill label="ความแม่นยำ" value="76–99%" color="var(--mint-primary)" />
-                  <Pill label="TMSE สูงสุด" value="30 pts" color="var(--mint-blue)" />
+                  <Pill label="MoCA/TMSE สูงสุด" value="30 pts" color="#8b5cf6" />
                   <Pill label="ระยะเวลา" value="3–15 min" color="var(--mint-warn)" />
                   {allResults.length > 0 && <Pill label="บันทึกแล้ว" value={allResults.length + ' ราย'} color="var(--mint-primary)" />}
                 </div>
@@ -817,10 +846,11 @@ export default function App() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <TestCard icon="⚡" title="Mini-Cog™" sub="การทดสอบความจำ 3 คำ + การวาดรูปนาฬิกา เหมาะสำหรับการคัดกรองเบื้องต้นอย่างรวดเร็ว" badge="5 คะแนน" bColor="var(--mint-primary)" bBg="var(--mint-primary-xl)" onClick={() => setShowForm('minicog')} />
                 <TestCard icon="🧠" title="TMSE" sub="Thai Mental State Examination ครอบคลุม 6 ด้านของการรับรู้ทางปัญญา" badge="30 คะแนน" bColor="var(--mint-blue)" bBg="var(--mint-blue-xl)" onClick={() => setShowForm('tmse')} />
+                <TestCard icon="📋" title="MoCA" sub="Montreal Cognitive Assessment ครอบคลุม 7 ด้าน ละเอียดกว่า TMSE เหมาะสำหรับภาวะ MCI" badge="30 คะแนน" bColor="#8b5cf6" bBg="#f3e8ff" onClick={() => setShowForm('moca')} />
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 14 }}>
-              <InfoCard icon="🔬" title="Evidence-Based" desc="ทั้ง Mini-Cog และ TMSE ผ่านการรับรองและตีพิมพ์ในวารสารการแพทย์ระดับสากล" />
+              <InfoCard icon="🔬" title="Evidence-Based" desc="Mini-Cog, TMSE และ MoCA ผ่านการรับรองและตีพิมพ์ในวารสารการแพทย์ระดับสากล" />
               <InfoCard icon="📊" title="Google Sheets" desc="ผลการทดสอบทุกรายการถูกบันทึกอัตโนมัติลง Google Sheets เข้าถึงได้จากทุกอุปกรณ์" />
               <InfoCard icon="📥" title="Export CSV" desc="ดาวน์โหลดผลการทดสอบทุกรายการเป็นไฟล์ CSV รองรับภาษาไทย พร้อมรายละเอียดคะแนน" />
             </div>
@@ -857,6 +887,16 @@ export default function App() {
               <WarnBadge>คะแนน &lt; 24 → มีแนวโน้มภาวะ Cognitive Impairment</WarnBadge>
               <p style={{ fontSize: 11, color: 'var(--mint-muted)', marginTop: 14 }}>ที่มา: กลุ่มฟื้นฟูสมรรถภาพสมอง สารศิริราช 45(6) มิถุนายน 2536 : 359-374</p>
             </CriteriaBlock>
+            <CriteriaBlock title="MoCA — Montreal Cognitive Assessment" color="#8b5cf6">
+              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.75, marginBottom: 14 }}>คะแนนเต็ม <strong style={{ color: 'var(--mint-text)' }}>30 คะแนน</strong> — คะแนน &lt; 25 ถือว่ามีภาวะ Cognitive Impairment (เพิ่ม 1 คะแนน ถ้าการศึกษา ≤ 6 ปี)</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 4 }}>
+                {[['Visuospatial/Executive','5 คะแนน'],['Naming','3 คะแนน'],['Attention','6 คะแนน'],['Language','3 คะแนน'],['Abstraction','2 คะแนน'],['Delayed Recall','5 คะแนน'],['Orientation','6 คะแนน']].map(([n,v]) => (
+                  <ScoreRow key={n} label={n} val={v} color="#8b5cf6" />
+                ))}
+              </div>
+              <WarnBadge>คะแนน &lt; 25 → มีแนวโน้มภาวะ Cognitive Impairment</WarnBadge>
+              <p style={{ fontSize: 11, color: 'var(--mint-muted)', marginTop: 14 }}>MoCA © Z. Nasreddine MD · แปลโดย Solaphat Hemrungrojn MD · www.mocatest.org</p>
+            </CriteriaBlock>
           </div>
         )}
       </main>
@@ -866,7 +906,7 @@ export default function App() {
           <Cross s={12} />
           <span style={{ fontSize: 11, color: 'var(--mint-muted)' }}>DementiaEval — เครื่องมือคัดกรองเบื้องต้นเท่านั้น ไม่ใช่การวินิจฉัยทางการแพทย์</span>
         </div>
-        <span style={{ fontSize: 11, color: 'var(--mint-muted)' }}>Mini-Cog™ © S. Borson</span>
+        <span style={{ fontSize: 11, color: 'var(--mint-muted)' }}>Mini-Cog™ © S. Borson · MoCA © Z. Nasreddine MD</span>
       </footer>
     </div>
   );
