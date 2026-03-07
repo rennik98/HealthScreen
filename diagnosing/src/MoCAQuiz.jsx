@@ -564,7 +564,9 @@ function TrailMaking({ onScore, fullscreen: fs = false }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12, flex: fs ? 1 : 'none' }}>
       <p style={{ fontSize: fs ? 16 : 13, color:'var(--mint-text2)', lineHeight:1.7, textAlign:'center', flexShrink:0 }}>
-        กดวงกลมเพื่อลากเส้นเชื่อม <strong>ตัวเลขและตัวอักษร</strong> ตามลำดับที่ถูกต้อง
+        ให้ผู้ทำแบบทดสอบ กดวงกลมและลากเส้นเชื่อมตัวเลขกับตัวอักษรไทยสลับกันตามลำดับ
+    เริ่มจาก 1 → ก → 2 → ข … ไปเรื่อย ๆ 
+    จนกว่าจะครบทุกวงกลม โดยต้องทำ ให้ถูกต้องและรวดเร็วที่สุด.
       </p>
 
       {/* Canvas */}
