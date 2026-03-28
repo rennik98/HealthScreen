@@ -8,7 +8,7 @@ import logoDementia from './assets/logo-dementia.svg';
    🔧 GOOGLE SHEETS CONFIG
    Paste your Apps Script Web App deployment URL here.
 ───────────────────────────────────────────────────────────────────────────── */
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwemYpgiRd8U6W8hxE2IHc8I9tFYjL3X5vuac58nsNekN4ymYEw0lOrAbweMn9j_v4S/exec';
+const SCRIPT_URL = import.meta.env.VITE_SCRIPT_URL ?? '';
 
 /* ── shared atoms ────────────────────────────────────────────────────────────*/
 const Cross = ({ s = 16, c = 'var(--mint-primary)' }) => (

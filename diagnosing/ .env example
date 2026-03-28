@@ -1,0 +1,8 @@
+# Google Apps Script deployment URL
+# Get this from: Apps Script → Deploy → Manage deployments → Copy URL
+VITE_SCRIPT_URL=YOUR_APPS_SCRIPT_DEPLOYMENT_URL_HERE
+
+# Note: SPREADSHEET_ID and SHEET_NAME are stored in Apps Script Properties
+# Apps Script → Project Settings → Script Properties
+# SPREADSHEET_ID = your Google Sheets ID
+# SHEET_NAME     = your sheet tab name (e.g. Result)
