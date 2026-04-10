@@ -4,6 +4,7 @@ import TMSEQuiz from './TMSEQuiz';
 import MoCAQuiz from './MoCAQuiz';
 import OralHealthQuiz from './OralHealthQuiz';
 import EyeHealthQuiz from './EyeHealthQuiz';
+import BoneJointQuiz from './BoneJointQuiz';
 import logoDementia from './assets/logo-dementia.svg';
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -182,6 +183,7 @@ const PatientForm = ({ quizType, onConfirm, onCancel }) => {
     moca:    { label: 'MoCA',              color: '#8b5cf6',             grad: 'linear-gradient(135deg, #8b5cf6, #a78bfa)',                              icon: '📋', bg: '#f3e8ff' },
     oral:    { label: 'สุขภาพช่องปาก',    color: '#0891b2',             grad: 'linear-gradient(135deg, #0891b2, #0e7490)',                              icon: '🦷', bg: '#ecfeff' },
     eye:     { label: 'สุขภาวะทางตา',     color: '#7c3aed',             grad: 'linear-gradient(135deg, #7c3aed, #6d28d9)',                              icon: '👁️', bg: '#f5f3ff' },
+    bone:    { label: 'โรคทางกระดูกและข้อ', color: '#ea580c',             grad: 'linear-gradient(135deg, #ea580c, #c2410c)',                              icon: '🦴', bg: '#fff7ed' },
   };
   const cfg = typeConfigs[quizType] || typeConfigs.minicog;
 
@@ -250,6 +252,7 @@ const ResultSummaryModal = ({ result, patient, onClose, onViewAll }) => {
   const isMoCA = result.type === 'MoCA';
   const isOral = result.type === 'Oral Health';
   const isEye  = result.type === 'Eye Health';
+  const isBone = result.type === 'Bone and Joint';
   const impaired = result.impaired;
 
   const typeMap = {
@@ -258,9 +261,10 @@ const ResultSummaryModal = ({ result, patient, onClose, onViewAll }) => {
     'MoCA':        { color: '#8b5cf6',             grad: 'linear-gradient(135deg, #8b5cf6, #a78bfa)',                              icon: '📋' },
     'Oral Health': { color: '#0891b2',             grad: 'linear-gradient(135deg, #0891b2, #0e7490)',                              icon: '🦷' },
     'Eye Health':  { color: '#7c3aed',             grad: 'linear-gradient(135deg, #7c3aed, #6d28d9)',                              icon: '👁️' },
+    'Bone and Joint': { color: '#ea580c',          grad: 'linear-gradient(135deg, #ea580c, #c2410c)',                              icon: '🦴' },
   };
   const tc = typeMap[result.type] || typeMap['Mini-Cog'];
-  const pct = (result.totalScore / result.maxScore) * 100;
+  const pct = result.maxScore > 0 ? (result.totalScore / result.maxScore) * 100 : (impaired ? 100 : 0);
   const circ = 2 * Math.PI * 52;
 
   return (
@@ -282,18 +286,20 @@ const ResultSummaryModal = ({ result, patient, onClose, onViewAll }) => {
         <div style={{ padding: '24px 24px 20px' }}>
           {/* Score ring */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 22 }}>
-            <div style={{ position: 'relative', width: 110, height: 110, flexShrink: 0 }}>
-              <svg width="110" height="110" style={{ position: 'absolute', inset: 0 }}>
-                <circle cx="55" cy="55" r="52" fill="none" stroke="var(--mint-border2)" strokeWidth="7"/>
-                <circle cx="55" cy="55" r="52" fill="none" stroke={impaired ? 'var(--mint-warn)' : tc.color} strokeWidth="7"
-                  strokeDasharray={`${(pct/100)*circ} ${circ}`} strokeLinecap="round" transform="rotate(-90 55 55)"
-                  style={{ transition: 'stroke-dasharray 1s ease' }}/>
-              </svg>
-              <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 28, fontWeight: 800, color: impaired ? 'var(--mint-warn)' : tc.color }}>{result.totalScore}</span>
-                <span style={{ fontSize: 11, color: 'var(--mint-muted)' }}>/ {result.maxScore}</span>
+            {!isBone && (
+              <div style={{ position: 'relative', width: 110, height: 110, flexShrink: 0 }}>
+                <svg width="110" height="110" style={{ position: 'absolute', inset: 0 }}>
+                  <circle cx="55" cy="55" r="52" fill="none" stroke="var(--mint-border2)" strokeWidth="7"/>
+                  <circle cx="55" cy="55" r="52" fill="none" stroke={impaired ? 'var(--mint-warn)' : tc.color} strokeWidth="7"
+                    strokeDasharray={`${(pct/100)*circ} ${circ}`} strokeLinecap="round" transform="rotate(-90 55 55)"
+                    style={{ transition: 'stroke-dasharray 1s ease' }}/>
+                </svg>
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 28, fontWeight: 800, color: impaired ? 'var(--mint-warn)' : tc.color }}>{result.totalScore}</span>
+                  <span style={{ fontSize: 11, color: 'var(--mint-muted)' }}>/ {result.maxScore}</span>
+                </div>
               </div>
-            </div>
+            )}
             <div style={{ flex: 1 }}>
               <div style={{ borderRadius: 14, padding: '14px 16px', background: impaired ? '#fff7ed' : '#f0fdf9', border: `1.5px solid ${impaired ? '#fcd34d' : '#6ee7d5'}`, marginBottom: 8 }}>
                 <p style={{ fontWeight: 800, fontSize: 14, color: impaired ? '#92400e' : '#065f46', marginBottom: 4 }}>
@@ -302,6 +308,7 @@ const ResultSummaryModal = ({ result, patient, onClose, onViewAll }) => {
                 <p style={{ fontSize: 12, color: impaired ? '#b45309' : '#047857', lineHeight: 1.5 }}>
                   {isOral ? (impaired ? 'พบปัญหาช่องปาก — ควรส่งต่อทันตแพทย์' : 'ไม่พบปัญหาสำคัญ') :
                    isEye  ? (impaired ? 'พบปัญหาการมองเห็น — ควรส่งต่อแพทย์' : 'ไม่พบปัญหาการมองเห็น') :
+                   isBone ? (impaired ? 'พบความเสี่ยงกระดูกและข้อ — ควรส่งต่อแพทย์' : 'กระดูกและข้ออยู่ในเกณฑ์ดี') :
                    isMini ? (impaired ? 'คะแนน ≤ 3 → มีแนวโน้ม Cognitive Impairment' : 'คะแนน > 3 → ไม่พบสัญญาณผิดปกติ') :
                    isMoCA ? (impaired ? 'คะแนน < 25 → มีแนวโน้ม Cognitive Impairment' : 'คะแนน ≥ 25 → ไม่พบสัญญาณผิดปกติ') :
                             (impaired ? 'คะแนน < 24 → มีแนวโน้ม Cognitive Impairment' : 'คะแนน ≥ 24 → ไม่พบสัญญาณผิดปกติ')}
@@ -367,9 +374,9 @@ async function loadFromSheets() {
     type:       String(row[3] ?? ''),
     totalScore: Number(row[4]),
     maxScore:   Number(row[5]),
-    impaired:   String(row[6]).includes('บกพร่อง') || String(row[6]).includes('Impairment') || String(row[6]).includes('พบปัญหา') || String(row[6]).includes('ควรส่งต่อ'),
+    // 👇 เพิ่มคำว่า "พบความเสี่ยง" เข้าไปเพื่อให้แอปเปลี่ยนสีได้ถูกต้อง
+    impaired:   String(row[6]).includes('บกพร่อง') || String(row[6]).includes('Impairment') || String(row[6]).includes('พบปัญหา') || String(row[6]).includes('ควรส่งต่อ') || String(row[6]).includes('พบความเสี่ยง'),
     
-    // 👇 แก้ไขบล็อก datetime ตรงนี้ครับ 👇
     datetime: (() => {
       const raw = String(row[7] ?? '');
       const d = new Date(raw);
@@ -383,7 +390,6 @@ async function loadFromSheets() {
       }
       return raw;
     })(),
-    // 👆 สิ้นสุดส่วนที่แก้ไข 👆
 
     duration: Number(row[8]) || 0,
     breakdown: {},
@@ -397,6 +403,7 @@ const TYPE_COLORS = {
   'MoCA':        '#8b5cf6',
   'Oral Health': '#0891b2',
   'Eye Health':  '#7c3aed',
+  'Bone and Joint': '#ea580c',
 };
 const TYPE_BG = {
   'Mini-Cog':    'var(--mint-primary-xl)',
@@ -404,81 +411,149 @@ const TYPE_BG = {
   'MoCA':        '#f3e8ff',
   'Oral Health': '#ecfeff',
   'Eye Health':  '#f5f3ff',
+  'Bone and Joint': '#fff7ed',
 };
 
-const ResultsPage = ({ results, onExport, onRefresh, loading }) => (
-  <div className="fade-up">
-    <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24, gap: 12 }}>
-      <div>
-        <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--mint-text)' }}>ผลการทดสอบทั้งหมด</h2>
-        <p style={{ fontSize: 14, color: 'var(--mint-muted)', marginTop: 4 }}>
-          {loading ? 'กำลังโหลดจาก Google Sheets…' : <> บันทึกแล้ว <strong style={{ color: 'var(--mint-primary)' }}>{results.length}</strong> รายการ</>}
-        </p>
-      </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button onClick={onRefresh} disabled={loading} style={{ padding: '9px 14px', borderRadius: 11, fontSize: 13, fontWeight: 700, background: 'var(--mint-primary-xl)', border: '1px solid var(--mint-border)', color: 'var(--mint-primary)', cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, opacity: loading ? 0.6 : 1 }}>
-          {loading ? <Spinner size={14} color="var(--mint-primary)" /> : '🔄'} รีเฟรช
-        </button>
-        {results.length > 0 && (
-          <button onClick={onExport} style={{ padding: '9px 16px', borderRadius: 11, fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg, var(--mint-primary), var(--mint-primary-l))', color: 'white', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(14,159,142,0.28)' }}>📥 ดาวน์โหลด CSV</button>
-        )}
-      </div>
-    </div>
+const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
+  // State สำหรับการค้นหา กรอง และเรียงข้อมูล
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('All');
+  const [sortBy, setSortBy] = useState('date-desc');
 
-    {loading ? (
-      <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', border: '1.5px solid var(--mint-border)', borderRadius: 22 }}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><Spinner size={36} /></div>
-        <p style={{ fontSize: 14, color: 'var(--mint-muted)' }}>กำลังโหลดข้อมูลจาก Google Sheets…</p>
-      </div>
-    ) : results.length === 0 ? (
-      <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', border: '1.5px dashed var(--mint-border)', borderRadius: 22, color: 'var(--mint-muted)' }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
-        <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>ยังไม่มีข้อมูล</p>
-        <p style={{ fontSize: 13 }}>ทำแบบทดสอบก่อนแล้วผลจะปรากฏที่นี่</p>
-      </div>
-    ) : (
-      <div style={{ background: 'white', border: '1.5px solid var(--mint-border)', borderRadius: 22, overflow: 'hidden', boxShadow: 'var(--shadow-md)' }}>
-        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 520 }}>
-            <thead>
-              <tr style={{ background: 'var(--mint-surface2)', borderBottom: '2px solid var(--mint-border2)' }}>
-                {['#','ชื่อ-นามสกุล','อายุ','แบบทดสอบ','คะแนน','การแปลผล','วันที่/เวลา','ระยะเวลา'].map(h => (
-                  <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 700, color: 'var(--mint-text2)', fontSize: 11, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {results.map((r, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid var(--mint-border2)', transition: 'background 0.15s' }}
-                  onMouseOver={e => e.currentTarget.style.background = 'var(--mint-surface2)'}
-                  onMouseOut={e  => e.currentTarget.style.background = 'transparent'}>
-                  <td style={{ padding: '11px 14px', color: 'var(--mint-muted)', fontWeight: 600 }}>{i+1}</td>
-                  <td style={{ padding: '11px 14px', fontWeight: 700, color: 'var(--mint-text)' }}>{r.name}</td>
-                  <td style={{ padding: '11px 14px', color: 'var(--mint-text2)' }}>{r.age} ปี</td>
-                  <td style={{ padding: '11px 14px' }}>
-                    <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: TYPE_BG[r.type] || 'var(--mint-surface2)', color: TYPE_COLORS[r.type] || 'var(--mint-muted)' }}>{r.type}</span>
-                  </td>
-                  <td style={{ padding: '11px 14px', fontWeight: 800, fontSize: 15, color: r.impaired ? 'var(--mint-warn)' : (TYPE_COLORS[r.type] || 'var(--mint-primary)') }}>
-                    {r.totalScore}<span style={{ fontSize: 11, fontWeight: 400, color: 'var(--mint-muted)' }}>/{r.maxScore}</span>
-                  </td>
-                  <td style={{ padding: '11px 14px' }}>
-                    <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: r.impaired ? '#fff7ed' : '#f0fdf9', color: r.impaired ? '#92400e' : '#065f46', border: '1px solid ' + (r.impaired ? '#fcd34d88' : '#6ee7d588'), whiteSpace: 'nowrap' }}>
-                      {r.impaired ? '⚠️ พบปัญหา' : '✅ ปกติ'}
-                    </span>
-                  </td>
-                  <td style={{ padding: '11px 14px', color: 'var(--mint-muted)', fontSize: 12, whiteSpace: 'nowrap' }}>{r.datetime}</td>
-                  <td style={{ padding: '11px 14px', color: 'var(--mint-text2)', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                    {r.duration > 0 ? `⏱ ${String(Math.floor(r.duration/60)).padStart(2,'0')}:${String(r.duration%60).padStart(2,'0')}` : '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+  // ดึงชื่อแบบทดสอบที่มีทั้งหมดมาสร้าง Dropdown
+  const uniqueTypes = [...new Set(results.map(r => r.type))];
+
+  // เตรียมข้อมูลพร้อมใส่ Index เดิมไว้สำหรับเรียงตามวันที่
+  const processedResults = results.map((r, i) => ({ ...r, originalIndex: i }));
+
+  // กรองข้อมูล (Filter & Search)
+  const filtered = processedResults.filter(r => {
+    const matchName = r.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchType = filterType === 'All' ? true : r.type === filterType;
+    return matchName && matchType;
+  });
+
+  // เรียงลำดับข้อมูล (Sort)
+  filtered.sort((a, b) => {
+    if (sortBy === 'date-desc') return b.originalIndex - a.originalIndex;
+    if (sortBy === 'date-asc') return a.originalIndex - b.originalIndex;
+    if (sortBy === 'name-asc') return a.name.localeCompare(b.name, 'th');
+    if (sortBy === 'age-asc') return (Number(a.age) || 0) - (Number(b.age) || 0);
+    if (sortBy === 'age-desc') return (Number(b.age) || 0) - (Number(a.age) || 0);
+    return 0;
+  });
+
+  return (
+    <div className="fade-up">
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20, gap: 12 }}>
+        <div>
+          <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--mint-text)' }}>ผลการทดสอบทั้งหมด</h2>
+          <p style={{ fontSize: 14, color: 'var(--mint-muted)', marginTop: 4 }}>
+            {loading ? 'กำลังโหลดจาก Google Sheets…' : <> พบ <strong style={{ color: 'var(--mint-primary)' }}>{filtered.length}</strong> จากทั้งหมด {results.length} รายการ</>}
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button onClick={onRefresh} disabled={loading} style={{ padding: '9px 14px', borderRadius: 11, fontSize: 13, fontWeight: 700, background: 'var(--mint-primary-xl)', border: '1px solid var(--mint-border)', color: 'var(--mint-primary)', cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, opacity: loading ? 0.6 : 1 }}>
+            {loading ? <Spinner size={14} color="var(--mint-primary)" /> : '🔄'} รีเฟรช
+          </button>
+          {results.length > 0 && (
+            <button onClick={onExport} style={{ padding: '9px 16px', borderRadius: 11, fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg, var(--mint-primary), var(--mint-primary-l))', color: 'white', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(14,159,142,0.28)' }}>📥 ดาวน์โหลด CSV</button>
+          )}
         </div>
       </div>
-    )}
-  </div>
-);
+
+      {/* ── แถบเครื่องมือ Filter & Sort ── */}
+      {!loading && results.length > 0 && (
+        <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            placeholder="🔍 ค้นหาชื่อ-นามสกุล..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            style={{ padding: '10px 14px', borderRadius: '12px', border: '1.5px solid var(--mint-border)', fontSize: 13, fontWeight: 600, outline: 'none', flex: '1 1 200px', background: 'white' }}
+          />
+          <select
+            value={filterType}
+            onChange={e => setFilterType(e.target.value)}
+            style={{ padding: '10px 14px', borderRadius: '12px', border: '1.5px solid var(--mint-border)', fontSize: 13, fontWeight: 600, outline: 'none', background: 'white', flex: '1 1 150px', cursor: 'pointer', color: 'var(--mint-text)' }}
+          >
+            <option value="All">📌 ทุกแบบทดสอบ</option>
+            {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value)}
+            style={{ padding: '10px 14px', borderRadius: '12px', border: '1.5px solid var(--mint-border)', fontSize: 13, fontWeight: 600, outline: 'none', background: 'white', flex: '1 1 150px', cursor: 'pointer', color: 'var(--mint-text)' }}
+          >
+            <option value="date-desc">🕒 วันที่: ล่าสุด - เก่าสุด</option>
+            <option value="date-asc">🕒 วันที่: เก่าสุด - ล่าสุด</option>
+            <option value="name-asc">🔤 ชื่อ: ก - ฮ</option>
+            <option value="age-asc">👤 อายุ: น้อย - มาก</option>
+            <option value="age-desc">👤 อายุ: มาก - น้อย</option>
+          </select>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', border: '1.5px solid var(--mint-border)', borderRadius: 22 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><Spinner size={36} /></div>
+          <p style={{ fontSize: 14, color: 'var(--mint-muted)' }}>กำลังโหลดข้อมูลจาก Google Sheets…</p>
+        </div>
+      ) : results.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', border: '1.5px dashed var(--mint-border)', borderRadius: 22, color: 'var(--mint-muted)' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
+          <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>ยังไม่มีข้อมูล</p>
+          <p style={{ fontSize: 13 }}>ทำแบบทดสอบก่อนแล้วผลจะปรากฏที่นี่</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '40px 20px', background: 'white', border: '1.5px dashed var(--mint-border)', borderRadius: 22, color: 'var(--mint-muted)' }}>
+          <p style={{ fontSize: 15, fontWeight: 700 }}>ไม่พบข้อมูลที่ค้นหา</p>
+        </div>
+      ) : (
+        <div style={{ background: 'white', border: '1.5px solid var(--mint-border)', borderRadius: 22, overflow: 'hidden', boxShadow: 'var(--shadow-md)' }}>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 520 }}>
+              <thead>
+                <tr style={{ background: 'var(--mint-surface2)', borderBottom: '2px solid var(--mint-border2)' }}>
+                  {['#','ชื่อ-นามสกุล','อายุ','แบบทดสอบ','คะแนน','การแปลผล','วันที่/เวลา','ระยะเวลา'].map(h => (
+                    <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 700, color: 'var(--mint-text2)', fontSize: 11, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((r, i) => (
+                  <tr key={r.originalIndex} style={{ borderBottom: '1px solid var(--mint-border2)', transition: 'background 0.15s' }}
+                    onMouseOver={e => e.currentTarget.style.background = 'var(--mint-surface2)'}
+                    onMouseOut={e  => e.currentTarget.style.background = 'transparent'}>
+                    <td style={{ padding: '11px 14px', color: 'var(--mint-muted)', fontWeight: 600 }}>{i+1}</td>
+                    <td style={{ padding: '11px 14px', fontWeight: 700, color: 'var(--mint-text)' }}>{r.name}</td>
+                    <td style={{ padding: '11px 14px', color: 'var(--mint-text2)' }}>{r.age} ปี</td>
+                    <td style={{ padding: '11px 14px' }}>
+                      <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: TYPE_BG[r.type] || 'var(--mint-surface2)', color: TYPE_COLORS[r.type] || 'var(--mint-muted)', whiteSpace: 'nowrap' }}>{r.type}</span>
+                    </td>
+                    <td style={{ padding: '11px 14px', fontWeight: 800, fontSize: 15, color: r.impaired ? 'var(--mint-warn)' : (TYPE_COLORS[r.type] || 'var(--mint-primary)') }}>
+                      {r.type === 'Bone and Joint' ? '—' : r.totalScore}
+                      {r.type !== 'Bone and Joint' && <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--mint-muted)' }}>/{r.maxScore}</span>}
+                    </td>
+                    <td style={{ padding: '11px 14px' }}>
+                      <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: r.impaired ? '#fff7ed' : '#f0fdf9', color: r.impaired ? '#92400e' : '#065f46', border: '1px solid ' + (r.impaired ? '#fcd34d88' : '#6ee7d588'), whiteSpace: 'nowrap' }}>
+                        {r.impaired ? '⚠️ พบปัญหา' : '✅ ปกติ'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '11px 14px', color: 'var(--mint-muted)', fontSize: 12, whiteSpace: 'nowrap' }}>{r.datetime}</td>
+                    <td style={{ padding: '11px 14px', color: 'var(--mint-text2)', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                      {r.duration > 0 ? `⏱ ${String(Math.floor(r.duration/60)).padStart(2,'0')}:${String(r.duration%60).padStart(2,'0')}` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 /* ── App ─────────────────────────────────────────────────────────────────────*/
 export default function App() {
@@ -556,6 +631,8 @@ export default function App() {
   if (quiz === 'moca')    return <MoCAQuiz    patient={patient} onBack={handleBack} onComplete={handleComplete} />;
   if (quiz === 'oral')    return <OralHealthQuiz patient={patient} onBack={handleBack} onComplete={handleComplete} />;
   if (quiz === 'eye')     return <EyeHealthQuiz  patient={patient} onBack={handleBack} onComplete={handleComplete} />;
+  // 👇 เพิ่มแบบทดสอบกระดูกและข้อ
+  if (quiz === 'bone')    return <BoneJointQuiz  patient={patient} onBack={handleBack} onComplete={handleComplete} />;
 
   /* ── Test groups config ── */
   const cognitiveTests = [
@@ -566,6 +643,8 @@ export default function App() {
   const healthTests = [
     { key: 'oral', icon: '🦷', title: 'สุขภาพช่องปาก',   sub: 'ประเมินสุขภาพช่องปากผู้สูงอายุโดยทันตบุคลากร ครอบคลุม 8 ด้าน', badge: '8 รายการ',  bColor: '#0891b2', bBg: '#ecfeff' },
     { key: 'eye',  icon: '👁️', title: 'สุขภาวะทางตา',    sub: 'คัดกรองปัญหาการมองเห็น ต้อกระจก ต้อหิน จอตาเสื่อม + Snellen Chart', badge: 'ระยะ+ใกล้', bColor: '#7c3aed', bBg: '#f5f3ff' },
+    // 👇 เพิ่มการ์ดกระดูกและข้อ
+    { key: 'bone', icon: '🦴', title: 'โรคทางกระดูกและข้อ', sub: 'ประเมิน OSTA index, FRAX score และคัดกรองโรคข้อเข่าเสื่อมทางคลินิก', badge: '3 รายการ', bColor: '#ea580c', bBg: '#fff7ed' },
   ];
 
   return (
@@ -633,7 +712,7 @@ export default function App() {
                 คัดกรองสุขภาพ<span style={{ color: 'var(--mint-primary)', fontStyle: 'italic' }}>ผู้สูงอายุ</span><br/>ด้วยมาตรฐานสากล
               </h1>
               <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.8, maxWidth: 520 }}>
-                แบบคัดกรองสุขภาพผู้สูงอายุตามแนวทางกระทรวงสาธารณสุข ครอบคลุมด้านสมรรถภาพสมอง สุขภาพช่องปาก และสุขภาวะทางตา
+                แบบคัดกรองสุขภาพผู้สูงอายุตามแนวทางกระทรวงสาธารณสุข ครอบคลุมด้านสมรรถภาพสมอง สุขภาพช่องปาก สุขภาวะทางตา และกระดูกและข้อ
               </p>
             </div>
 
@@ -668,7 +747,7 @@ export default function App() {
               <InfoCard icon="🔬" title="Evidence-Based" desc="เครื่องมือทุกชิ้นผ่านการรับรองและอ้างอิงจากแนวทางกระทรวงสาธารณสุข พ.ศ.2564" />
               <InfoCard icon="📊" title="Google Sheets" desc="ผลการทดสอบทุกรายการบันทึกอัตโนมัติลง Google Sheets เข้าถึงได้จากทุกอุปกรณ์" />
               <InfoCard icon="📥" title="Export CSV" desc="ดาวน์โหลดผลการทดสอบทุกรายการเป็นไฟล์ CSV รองรับภาษาไทย" />
-              <InfoCard icon="🦷" title="ครอบคลุม 5 แบบทดสอบ" desc="Mini-Cog, TMSE, MoCA, สุขภาพช่องปาก และสุขภาวะทางตา" />
+              <InfoCard icon="📋" title="ครอบคลุม 6 แบบทดสอบ" desc="Mini-Cog, TMSE, MoCA, สุขภาพช่องปาก, สุขภาวะทางตา และโรคทางกระดูกและข้อ" />
             </div>
           </div>
         )}
@@ -735,6 +814,18 @@ export default function App() {
               </div>
               <WarnBadge>ตอบ "ใช่" ข้อใดข้อหนึ่ง หรืออ่าน Snellen ได้น้อยกว่าแถวที่ 5 → ส่งต่อแพทย์</WarnBadge>
               <p style={{ fontSize: 11, color: 'var(--mint-muted)', marginTop: 14 }}>ที่มา: คณะกรรมการพัฒนาเครื่องมือคัดกรองฯ กระทรวงสาธารณสุข พ.ศ.2564</p>
+            </CriteriaBlock>
+
+            <CriteriaBlock title="โรคทางกระดูกและข้อ (Bone and Joint)" color="#ea580c">
+              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.75, marginBottom: 14 }}>ประเมิน <strong>3 รายการ</strong> (OSTA index, FRAX score, ข้อเข่าเสื่อมทางคลินิก)</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginBottom: 4 }}>
+                <ScoreRow label="OSTA Index" val="< -4 (เสี่ยงสูง)" color="#ea580c" />
+                <ScoreRow label="FRAX (Major)" val="≥ 20%" color="#ea580c" />
+                <ScoreRow label="FRAX (Hip)" val="≥ 3%" color="#ea580c" />
+                <ScoreRow label="ข้อเข่าเสื่อม" val="ปวด + เข้าเกณฑ์ ≥ 2" color="#ea580c" />
+              </div>
+              <WarnBadge>หากพบความเสี่ยงข้อใดข้อหนึ่ง → ส่งต่อประเมินเพิ่มเติม</WarnBadge>
+              <p style={{ fontSize: 11, color: 'var(--mint-muted)', marginTop: 14 }}>ที่มา: แนวปฏิบัติบริการสาธารณสุข โรคกระดูกพรุน พ.ศ. 2553</p>
             </CriteriaBlock>
           </div>
         )}
