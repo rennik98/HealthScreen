@@ -116,6 +116,17 @@ export default function OralHealthQuiz({ onBack, onComplete, patient }) {
   const needsReferral = hasMajorProblem;
 
   const handleFinish = () => {
+    // เช็คว่าตอบข้อมูลพื้นฐานและผลตรวจทั้ง 8 ข้อครบหรือยัง
+    const isComplete = adlGroup !== null && 
+                       chewing !== null && 
+                       pain !== null && 
+                       Object.values(findings).every(v => v !== null);
+
+    if (!isComplete) {
+      alert('⚠️ กรุณาประเมินสุขภาพช่องปากให้ครบทุกข้อก่อนกดดูผลครับ');
+      return;
+    }
+
     setDone(true);
     if (onComplete) {
       onComplete({
@@ -124,12 +135,20 @@ export default function OralHealthQuiz({ onBack, onComplete, patient }) {
         maxScore: 8,
         impaired: needsReferral,
         duration: 0,
+        resultText: needsReferral ? 'ควรส่งต่อทันตแพทย์' : 'ปกติ',
         breakdown: {
-          adlGroup,
-          diseases,
-          chewing,
-          pain,
-          ...findings,
+          "กลุ่ม ADL": adlGroup ?? 'ไม่ได้ระบุ',
+          "โรคประจำตัว": diseases.length > 0 ? diseases.join(', ') : 'ไม่มี',
+          "การเคี้ยว/กลืน": chewing === 1 ? 'มีปัญหา' : chewing === 0 ? 'ปกติ' : '',
+          "การเจ็บปวดในช่องปาก": pain === 1 ? 'มีอาการ' : pain === 0 ? 'ไม่มี' : '',
+          "1. การสูญเสียฟัน": findings.toothLoss === 1 ? 'พบปัญหา' : findings.toothLoss === 0 ? 'ไม่พบปัญหา' : '',
+          "2. ใส่ฟันเทียม": findings.denture === 1 ? 'พบปัญหา' : findings.denture === 0 ? 'ไม่พบปัญหา' : '',
+          "3. ฟันผุ/รากฟันผุ": findings.decay === 1 ? 'พบปัญหา' : findings.decay === 0 ? 'ไม่พบปัญหา' : '',
+          "4. เหงือก/ปริทันต์": findings.gum === 1 ? 'พบปัญหา' : findings.gum === 0 ? 'ไม่พบปัญหา' : '',
+          "5. แผล/มะเร็งช่องปาก": findings.ulcer === 1 ? 'พบปัญหา' : findings.ulcer === 0 ? 'ไม่พบปัญหา' : '',
+          "6. ปากแห้ง/น้ำลายน้อย": findings.dry === 1 ? 'พบปัญหา' : findings.dry === 0 ? 'ไม่พบปัญหา' : '',
+          "7. ฟันสึก": findings.wear === 1 ? 'พบปัญหา' : findings.wear === 0 ? 'ไม่พบปัญหา' : '',
+          "8. อนามัยช่องปาก": findings.hygiene === 1 ? 'พบปัญหา' : findings.hygiene === 0 ? 'ไม่พบปัญหา' : '',
         },
       });
     }

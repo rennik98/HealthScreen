@@ -757,6 +757,19 @@ export default function MoCAQuiz({ onBack, onComplete, patient }) {
   const setRec = (i, v) => { const a=[...recall]; a[i]=v; setRecall(a); };
 
   const handleFinish = () => {
+    // เช็คว่ามีข้อไหนที่ยังไม่ได้ทำ (ยังมีค่าเป็น null) หรือไม่
+    const allAnswered = [
+      trailScore, cubeScore, clockContour, clockNumbers, clockHands,
+      ...naming, digitForward, digitBackward, tapScore, serialScore,
+      repeat1, repeat2, fluency, abstract1, abstract2,
+      ...recall, oriDate, oriMonth, oriYear, oriDay, oriPlace, oriCity
+    ].every(v => v !== null);
+
+    if (!allAnswered) {
+      alert('⚠️ กรุณาทำแบบทดสอบให้ครบทุกข้อ (เลือกคำตอบให้ครบ) ก่อนกดดูผลประเมินครับ');
+      return;
+    }
+
     const duration = timer.snapshot();
     timer.stop();
     setFinalDuration(duration);
@@ -769,13 +782,50 @@ export default function MoCAQuiz({ onBack, onComplete, patient }) {
         impaired,
         duration,
         breakdown: {
-          visuospatial: visuoScore,
-          naming: namingScore,
-          attention: attentionScore,
-          language: languageScore,
-          abstraction: abstractionScore,
-          delayedRecall: recallScore,
-          orientation: orientationScore,
+          "คะแนนมิติสัมพันธ์ (5)": visuoScore,
+          "คะแนนเรียกชื่อ (3)": namingScore,
+          "คะแนนความสนใจ (6)": attentionScore,
+          "คะแนนภาษา (3)": languageScore,
+          "คะแนนตรรกะ (2)": abstractionScore,
+          "คะแนนระลึกคำ (5)": recallScore,
+          "คะแนนรับรู้เวลา/สถานที่ (6)": orientationScore,
+          
+          "1a. ลากเส้น (Trail)": trailScore ?? '',
+          "1b. ลูกบาศก์ (Cube)": cubeScore ?? '',
+          "1c. นาฬิกา (รูปร่าง)": clockContour ?? '',
+          "1c. นาฬิกา (ตัวเลข)": clockNumbers ?? '',
+          "1c. นาฬิกา (เข็ม)": clockHands ?? '',
+
+          "2. เรียกชื่อ (สิงโต)": naming[0] ?? '',
+          "2. เรียกชื่อ (แรด)": naming[1] ?? '',
+          "2. เรียกชื่อ (อูฐ)": naming[2] ?? '',
+
+          "4a. ทวนเลข (เดินหน้า)": digitForward ?? '',
+          "4b. ทวนเลข (ถอยหลัง)": digitBackward ?? '',
+          "4c. เคาะโต๊ะเลข 1": tapScore ?? '',
+          "4d. ลบเลขทีละ 7": serialScore ?? '',
+
+          "5a. พูดตามประโยค 1": repeat1 ?? '',
+          "5b. พูดตามประโยค 2": repeat2 ?? '',
+          "5c. ความคล่อง (น.)": fluency ?? '',
+
+          "6a. นามธรรม (รถไฟ-จักรยาน)": abstract1 ?? '',
+          "6b. นามธรรม (นาฬิกา-ไม้บรรทัด)": abstract2 ?? '',
+
+          "7. ระลึกคำ (หน้า)": recall[0] ?? '',
+          "7. ระลึกคำ (ผ้าไหม)": recall[1] ?? '',
+          "7. ระลึกคำ (วัด)": recall[2] ?? '',
+          "7. ระลึกคำ (มะลิ)": recall[3] ?? '',
+          "7. ระลึกคำ (สีแดง)": recall[4] ?? '',
+
+          "8. รับรู้ (วันที่)": oriDate ?? '',
+          "8. รับรู้ (เดือน)": oriMonth ?? '',
+          "8. รับรู้ (ปี)": oriYear ?? '',
+          "8. รับรู้ (วัน)": oriDay ?? '',
+          "8. รับรู้ (สถานที่)": oriPlace ?? '',
+          "8. รับรู้ (จังหวัด)": oriCity ?? '',
+
+          "บวกคะแนนการศึกษา <= 6 ปี (+1)": eduBonus ? 1 : 0
         },
       });
     }

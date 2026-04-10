@@ -410,7 +410,7 @@ function WordRecall({ words, onConfirm }) {
         </span>
       </div>
 
-      <button onClick={() => onConfirm(score)} disabled={!allAnswered} style={{
+      <button onClick={() => onConfirm(score, checked)} disabled={!allAnswered} style={{
         width: '100%', padding: 14, borderRadius: 13, fontSize: 15, fontWeight: 700,
         background: allAnswered ? 'linear-gradient(135deg,var(--mint-primary),var(--mint-primary-l))' : 'var(--mint-border2)',
         color: allAnswered ? 'white' : 'var(--mint-muted)', border: 'none',
@@ -441,7 +441,7 @@ export default function MiniCogQuiz({ onBack, onComplete, patient }) {
 
   const handleClockScore = (sc) => { setCS(sc); setStep(3); };
 
-  const handleRecallScore = (rc) => {
+ const handleRecallScore = (rc, checkedWords = []) => {
     const duration = timer.snapshot();  // read ref before stop
     timer.stop();
     const cs    = clockScore ?? 0;
@@ -450,10 +450,21 @@ export default function MiniCogQuiz({ onBack, onComplete, patient }) {
     setResult(r);
     setStep(4);
     if (onComplete) {
-      onComplete({ type: 'Mini-Cog', totalScore: total, maxScore: 5, impaired: total <= 3, duration, breakdown: { clockDrawing: cs, wordRecall: rc } });
+      onComplete({ 
+        type: 'Mini-Cog', 
+        totalScore: total, 
+        maxScore: 5, 
+        impaired: total <= 3, 
+        duration, 
+        breakdown: { 
+          "วาดนาฬิกา (0 หรือ 2)": cs, 
+          "จำคำศัพท์ (0-3)": rc,
+          "ชุดคำศัพท์ที่ใช้": WORD_SET_LABELS[wordSetIdx]
+          // ลบส่วนที่ส่งคำศัพท์รายคำออกแล้ว เพื่อไม่ให้คอลัมน์ใน Sheet งอกเพิ่ม
+        } 
+      });
     }
   };
-
   const reset = () => { setStep(1); setCS(null); setResult(null); };
 
   return (

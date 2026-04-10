@@ -367,18 +367,24 @@ async function loadFromSheets() {
     type:       String(row[3] ?? ''),
     totalScore: Number(row[4]),
     maxScore:   Number(row[5]),
-    impaired:   String(row[6]).includes('บกพร่อง') || String(row[6]).includes('Impairment') || String(row[6]).includes('พบปัญหา'),
+    impaired:   String(row[6]).includes('บกพร่อง') || String(row[6]).includes('Impairment') || String(row[6]).includes('พบปัญหา') || String(row[6]).includes('ควรส่งต่อ'),
+    
+    // 👇 แก้ไขบล็อก datetime ตรงนี้ครับ 👇
     datetime: (() => {
       const raw = String(row[7] ?? '');
-      if (/\d{4}-\d{2}-\d{2}T/.test(raw)) {
-        const d = new Date(raw);
-        if (!isNaN(d)) {
-          const monthNames = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-          return `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()+543} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      const d = new Date(raw);
+      if (!isNaN(d) && raw.trim() !== '') {
+        const monthNames = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+        let year = d.getFullYear();
+        if (year < 2500) {
+          year += 543;
         }
+        return `${d.getDate()} ${monthNames[d.getMonth()]} ${year} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
       }
       return raw;
     })(),
+    // 👆 สิ้นสุดส่วนที่แก้ไข 👆
+
     duration: Number(row[8]) || 0,
     breakdown: {},
   }));

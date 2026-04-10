@@ -90,10 +90,6 @@ export default function EyeHealthQuiz({ onBack, onComplete, patient }) {
     { key: 'q5', label: '5. จอตาเสื่อมเนื่องจากอายุ', bold: 'ปิดตาดูทีละข้าง พบว่ามองเห็นจุดดำกลางภาพ หรือเห็นภาพบิดเบี้ยว' },
   ];
 
-  // Snellen: which side needs testing
-  const needSnellenRight = screen.q1.right === 1;
-  const needSnellenLeft = screen.q1.left === 1;
-
   const getSnellenResult = (row) => {
     if (row === null) return null;
     return row < 5 ? 'refer' : 'normal';
@@ -104,31 +100,69 @@ export default function EyeHealthQuiz({ onBack, onComplete, patient }) {
   const snellenRefer = (snellen.rightWorse === true) || (snellen.leftWorse === true) ||
     rightResult === 'refer' || leftResult === 'refer';
 
+  const overallRefer = hasVisionProblem || snellenRefer;
+
   const handleFinishScreening = () => {
+    // เช็คว่าทำคัดกรองครบทั้ง 5 ข้อ (ซ้ายและขวา) หรือยัง
+    const isScreenComplete = Object.values(screen).every(q => q.left !== null && q.right !== null);
+    
+    if (!isScreenComplete) {
+      alert('⚠️ กรุณาประเมินการคัดกรองเบื้องต้นให้ครบทั้ง "ตาซ้าย" และ "ตาขวา" ในทุกข้อครับ');
+      return;
+    }
+
     if (hasVisionProblem) { setPhase('snellen'); }
     else { setPhase('done'); setDone(true); finishAll(); }
   };
 
-  const finishAll = () => {
-    if (onComplete) {
-      onComplete({
-        type: 'Eye Health',
-        totalScore: hasVisionProblem ? 0 : 1,
-        maxScore: 1,
-        impaired: hasVisionProblem || snellenRefer,
-        duration: 0,
-        breakdown: { screen, snellen },
-      });
-    }
-  };
-
   const handleFinishSnellen = () => {
+    // เช็คว่าประเมินตาขวาและตาซ้ายเรียบร้อยแล้ว (เลือกระดับสายตา หรือ เลือกสายตาแย่ลง อย่างใดอย่างหนึ่ง)
+    const rightDone = snellen.rightRow !== null || snellen.rightWorse !== null;
+    const leftDone = snellen.leftRow !== null || snellen.leftWorse !== null;
+
+    if (!rightDone || !leftDone) {
+      alert('⚠️ กรุณาบันทึกผล Snellen Chart ให้ครบทั้ง "ตาซ้าย" และ "ตาขวา" ก่อนครับ');
+      return;
+    }
+
     setPhase('done');
     setDone(true);
     finishAll();
   };
 
-  const overallRefer = hasVisionProblem || snellenRefer;
+  const finishAll = () => {
+    if (onComplete) {
+      // Helper สำหรับจัด Format ข้อมูลลง Sheet ให้สวยงาม
+      const formatAns = (val) => val === 1 ? 'พบปัญหา' : val === 0 ? 'ปกติ' : 'ไม่ได้ตรวจ';
+
+      onComplete({
+        type: 'Eye Health',
+        totalScore: overallRefer ? 0 : 1,
+        maxScore: 1,
+        impaired: overallRefer,
+        duration: 0,
+        // ส่งข้อความแปลผลไปที่ Sheet โดยตรง (ต้องแก้ Apps Script รองรับ resultText ตามที่แนะนำไปก่อนหน้า)
+        resultText: overallRefer ? 'ควรส่งต่อจักษุแพทย์' : 'ปกติ',
+        breakdown: {
+          "1. สายตาระยะไกล (ซ้าย)": formatAns(screen.q1.left),
+          "1. สายตาระยะไกล (ขวา)": formatAns(screen.q1.right),
+          "2. สายตาระยะใกล้ (ซ้าย)": formatAns(screen.q2.left),
+          "2. สายตาระยะใกล้ (ขวา)": formatAns(screen.q2.right),
+          "3. ต้อกระจก (ซ้าย)": formatAns(screen.q3.left),
+          "3. ต้อกระจก (ขวา)": formatAns(screen.q3.right),
+          "4. ต้อหิน (ซ้าย)": formatAns(screen.q4.left),
+          "4. ต้อหิน (ขวา)": formatAns(screen.q4.right),
+          "5. จอตาเสื่อม (ซ้าย)": formatAns(screen.q5.left),
+          "5. จอตาเสื่อม (ขวา)": formatAns(screen.q5.right),
+          
+          "Snellen ตาขวา (อ่านได้แถวที่)": snellen.rightRow !== null ? (snellen.rightRow === 0 ? 'อ่านไม่ได้เลย' : snellen.rightRow) : 'ไม่ได้ตรวจ',
+          "Snellen ตาซ้าย (อ่านได้แถวที่)": snellen.leftRow !== null ? (snellen.leftRow === 0 ? 'อ่านไม่ได้เลย' : snellen.leftRow) : 'ไม่ได้ตรวจ',
+          "ตาขวารู้สึกสายตาแย่ลง": snellen.rightWorse ? 'ใช่' : 'ไม่ใช่/ไม่ได้ตรวจ',
+          "ตาซ้ายรู้สึกสายตาแย่ลง": snellen.leftWorse ? 'ใช่' : 'ไม่ใช่/ไม่ได้ตรวจ',
+        },
+      });
+    }
+  };
 
   /* ── Done Screen ── */
   if (done) {
