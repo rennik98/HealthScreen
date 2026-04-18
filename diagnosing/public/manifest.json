@@ -1,0 +1,18 @@
+{
+  "name": "HealthScreen — คัดกรองสุขภาพผู้สูงอายุ",
+  "short_name": "HealthScreen",
+  "description": "ระบบคัดกรองสุขภาพผู้สูงอายุ มาตรฐานกระทรวงสาธารณสุข พ.ศ.2564",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f0faf8",
+  "theme_color": "#0e9f8e",
+  "lang": "th",
+  "icons": [
+    {
+      "src": "/logo-dementia.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

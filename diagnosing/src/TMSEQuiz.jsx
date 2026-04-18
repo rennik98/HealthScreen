@@ -1,47 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import nurseImg from './assets/nurse.jpg';
-
-/* ── useTimer hook ── */
-function useTimer(autoStart = false) {
-  const [elapsed, setElapsed] = useState(0);
-  const elapsedRef  = useRef(0);
-  const intervalRef = useRef(null);
-  const startedAt   = useRef(null);
-  const stoppedRef  = useRef(false);
-
-  const start = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current); // clear any leftover (StrictMode)
-    stoppedRef.current = false;
-    startedAt.current = Date.now() - elapsedRef.current * 1000;
-    intervalRef.current = setInterval(() => {
-      if (stoppedRef.current) return;
-      const s = Math.floor((Date.now() - startedAt.current) / 1000);
-      elapsedRef.current = s;
-      setElapsed(s);
-    }, 500); // 500ms tick so display updates feel snappy
-  }, []);
-
-  const stop = useCallback(() => {
-    stoppedRef.current = true;
-    clearInterval(intervalRef.current);
-    intervalRef.current = null;
-  }, []);
-
-  const snapshot = useCallback(() => elapsedRef.current, []);
-
-  // autoStart support
-  useEffect(() => {
-    if (autoStart) start();
-    return () => {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    };
-  }, [autoStart, start]);
-
-  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
-
-  return { elapsed, fmt: fmt(elapsed), start, stop, snapshot };
-}
+import { useTimer } from './shared/useTimer';
+import { loadDraft, saveDraft, clearDraft } from './shared/quizStorage';
 
 /* ── Word sets (7 sets × 3 words each) ── */
 const WORD_SETS = [
@@ -338,20 +298,33 @@ function WordSetPicker({ selectedSet, onSelect }) {
 
 /* ── main ── */
 export default function TMSEQuiz({ onBack, onComplete, patient }) {
-  // Pick a random word set on mount
-  const [wordSetIdx, setWordSetIdx] = useState(() => Math.floor(Math.random() * WORD_SETS.length));
+  const DRAFT_KEY = 'tmse';
+  const draft = loadDraft(DRAFT_KEY, patient?.name);
+
+  const [wordSetIdx, setWordSetIdx] = useState(() => draft?.wordSetIdx ?? Math.floor(Math.random() * WORD_SETS.length));
   const REG_WORDS = WORD_SETS[wordSetIdx];
 
-  const [oriS,  setOriS]  = useState(Array(6).fill(null));
-  const [regS,  setRegS]  = useState(null);
-  const [attS,  setAttS]  = useState(null);
-  const [calcChk, setCalcChk] = useState([false,false,false]);
-  const [calcS, setCalcS] = useState(null);
-  const [langS, setLangS] = useState({ naming1:null, naming2:null, repeat:null, commands:Array(3).fill(null), read:null, copy:null, similarity:null });
-  const [recS,  setRecS]  = useState(Array(3).fill(null));
+  const [oriS,  setOriS]  = useState(draft?.oriS  ?? Array(6).fill(null));
+  const [regS,  setRegS]  = useState(draft?.regS  ?? null);
+  const [attS,  setAttS]  = useState(draft?.attS  ?? null);
+  const [calcChk, setCalcChk] = useState(draft?.calcChk ?? [false,false,false]);
+  const [calcS, setCalcS] = useState(draft?.calcS ?? null);
+  const [langS, setLangS] = useState(draft?.langS ?? { naming1:null, naming2:null, repeat:null, commands:Array(3).fill(null), read:null, copy:null, similarity:null });
+  const [recS,  setRecS]  = useState(draft?.recS  ?? Array(3).fill(null));
   const [done,        setDone]        = useState(false);
   const [finalDuration, setFinalDuration] = useState(0);
-  const timer = useTimer(true); // autoStart on mount
+  const timer = useTimer(true);
+
+  useEffect(() => {
+    if (done) return;
+    saveDraft(DRAFT_KEY, patient?.name, { wordSetIdx, oriS, regS, attS, calcChk, calcS, langS, recS });
+  }, [wordSetIdx, oriS, regS, attS, calcChk, calcS, langS, recS, done, patient?.name]);
+
+  const handleBack = () => {
+    if (window.confirm('ออกจากการทดสอบ?\nคำตอบที่ตอบไปแล้วจะถูกบันทึกไว้ชั่วคราว')) {
+      onBack();
+    }
+  };
 
   // Reset recall scores when word set changes
   const handleWordSetChange = (idx) => {
@@ -374,6 +347,7 @@ export default function TMSEQuiz({ onBack, onComplete, patient }) {
     timer.stop();
     setFinalDuration(duration);
     setDone(true);
+    clearDraft(DRAFT_KEY, patient?.name);
     if (onComplete) {
       onComplete({
         type: 'TMSE',
@@ -491,7 +465,7 @@ export default function TMSEQuiz({ onBack, onComplete, patient }) {
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column' }}>
       {/* topbar */}
       <div style={{ position:'sticky',top:0,zIndex:50,background:'rgba(240,250,248,0.9)',backdropFilter:'blur(18px)',borderBottom:'1px solid var(--mint-border)',padding:'0 16px',height:56,display:'flex',alignItems:'center',justifyContent:'space-between' }}>
-        <button onClick={onBack} style={{ background:'none',border:'none',color:'var(--mint-muted)',cursor:'pointer',fontSize:13,fontWeight:600,padding:'8px 0' }}>← กลับ</button>
+        <button onClick={handleBack} style={{ background:'none',border:'none',color:'var(--mint-muted)',cursor:'pointer',fontSize:13,fontWeight:600,padding:'8px 0' }}>← กลับ</button>
         <div style={{ display:'flex',alignItems:'center',gap:6 }}>
           <Cross s={14}/>
           <span style={{ fontSize:14,fontWeight:700,color:'var(--mint-text)' }}>TMSE</span>
@@ -783,7 +757,7 @@ export default function TMSEQuiz({ onBack, onComplete, patient }) {
           </div>
           <ActionBtn onClick={handleFinish} variant="primary">ดูผลการประเมิน →</ActionBtn>
           <div style={{ height:8 }}/>
-          <ActionBtn onClick={onBack} variant="outline">← กลับหน้าหลัก</ActionBtn>
+          <ActionBtn onClick={handleBack} variant="outline">← กลับหน้าหลัก</ActionBtn>
         </div>
 
         <p style={{ textAlign:'center',fontSize:11,color:'var(--mint-muted)',paddingBottom:20 }}>

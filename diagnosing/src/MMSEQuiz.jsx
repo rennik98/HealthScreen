@@ -1,45 +1,7 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-
-/* ── useTimer hook ── */
-function useTimer(autoStart = false) {
-  const [elapsed, setElapsed] = useState(0);
-  const elapsedRef  = useRef(0);
-  const intervalRef = useRef(null);
-  const startedAt   = useRef(null);
-  const stoppedRef  = useRef(false);
-
-  const start = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    stoppedRef.current = false;
-    startedAt.current = Date.now() - elapsedRef.current * 1000;
-    intervalRef.current = setInterval(() => {
-      if (stoppedRef.current) return;
-      const s = Math.floor((Date.now() - startedAt.current) / 1000);
-      elapsedRef.current = s;
-      setElapsed(s);
-    }, 500);
-  }, []);
-
-  const stop = useCallback(() => {
-    stoppedRef.current = true;
-    clearInterval(intervalRef.current);
-    intervalRef.current = null;
-  }, []);
-
-  const snapshot = useCallback(() => elapsedRef.current, []);
-
-  useEffect(() => {
-    if (autoStart) start();
-    return () => {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    };
-  }, [autoStart, start]);
-
-  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
-
-  return { elapsed, fmt: fmt(elapsed), start, stop, snapshot };
-}
+import React, { useState, useEffect } from 'react';
+import { useTimer } from './shared/useTimer';
+import DrawingCanvas from './shared/DrawingCanvas';
+import { loadDraft, saveDraft, clearDraft } from './shared/quizStorage';
 
 /* ── shared atoms ── */
 const Cross = ({ s=14, c='#0d9488' }) => (
@@ -108,183 +70,36 @@ const ActionBtn = ({ children, onClick, variant='primary' }) => {
   );
 };
 
-/* ── Fullscreen Drawing Canvas (Fix Squishing Issue) ── */
-function DrawingCanvas({ height=400, onScoreSelect }) {
-  const canvasRef   = useRef(null);
-  const containerRef = useRef(null);
-  const drawing     = useRef(false);
-  const strokesRef  = useRef([]);   
-  const currentRef  = useRef([]);   
-  const [confirmed, setConfirmed] = React.useState(false);
-  const [isEmpty,   setIsEmpty]   = React.useState(true);
-
-  const initSize = useCallback(() => {
-    const canvas = canvasRef.current;
-    const container = containerRef.current;
-    if (!canvas || !container) return;
-    
-    // 🌟 ล็อกขนาด Canvas ให้คงที่ ไม่ให้บีบตามจอเวลาปุ่มเด้งขึ้นมา
-    canvas.width = container.clientWidth;
-    canvas.height = height;
-    redrawAll();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [height]);
-
-  useEffect(() => {
-    initSize();
-    window.addEventListener('resize', initSize);
-    return () => window.removeEventListener('resize', initSize);
-  }, [initSize]);
-
-  const redrawAll = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = '#0f2b28';
-    ctx.lineWidth   = 2.5;
-    ctx.lineCap     = 'round';
-    ctx.lineJoin    = 'round';
-    for (const stroke of strokesRef.current) {
-      if (stroke.length < 2) continue;
-      ctx.beginPath();
-      ctx.moveTo(stroke[0].x, stroke[0].y);
-      for (let i = 1; i < stroke.length; i++) {
-        ctx.lineTo(stroke[i].x, stroke[i].y);
-      }
-      ctx.stroke();
-    }
-  }, []);
-
-  const getPos = (e, canvas) => {
-    const rect   = canvas.getBoundingClientRect();
-    const scaleX = canvas.width  / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const src    = e.touches ? e.touches[0] : e;
-    return { x:(src.clientX-rect.left)*scaleX, y:(src.clientY-rect.top)*scaleY };
-  };
-
-  const startDraw = (e) => {
-    if (confirmed) return; e.preventDefault();
-    drawing.current = true;
-    currentRef.current = [];
-    const canvas = canvasRef.current; const ctx = canvas.getContext('2d');
-    const pos = getPos(e, canvas);
-    currentRef.current.push(pos);
-    ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
-    ctx.strokeStyle = '#0f2b28'; ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  };
-
-  const draw = (e) => {
-    if (!drawing.current || confirmed) return; e.preventDefault();
-    const canvas = canvasRef.current; const ctx = canvas.getContext('2d');
-    const pos = getPos(e, canvas);
-    currentRef.current.push(pos);
-    ctx.lineTo(pos.x, pos.y); ctx.stroke();
-    setIsEmpty(false);
-  };
-
-  const stopDraw = () => {
-    if (!drawing.current) return;
-    drawing.current = false;
-    if (currentRef.current.length > 0) {
-      strokesRef.current = [...strokesRef.current, [...currentRef.current]];
-      currentRef.current = [];
-    }
-  };
-
-  const handleUndo = () => {
-    if (strokesRef.current.length === 0) return;
-    strokesRef.current = strokesRef.current.slice(0, -1);
-    redrawAll();
-    setIsEmpty(strokesRef.current.length === 0);
-  };
-
-  const handleClear = () => {
-    strokesRef.current = [];
-    currentRef.current = [];
-    redrawAll();
-    setIsEmpty(true);
-  };
-
-  return (
-    // 🌟 เอา flex: 1 ออกเพื่อไม่ให้มันยืดหด ป้องกันการโดนบีบ
-    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-      <div ref={containerRef} style={{ width: '100%', height: height, flexShrink: 0 }}>
-        <canvas
-          ref={canvasRef}
-          style={{
-            display:'block', width: '100%', height: '100%',
-            border: confirmed ? `2px solid ${MMSE_COLOR}` : '2px dashed var(--mint-border)',
-            borderRadius:20, cursor: confirmed ? 'default' : 'crosshair',
-            background:'white', touchAction:'none', opacity: confirmed ? 0.92 : 1,
-            transition: 'border-color 0.2s, opacity 0.2s',
-            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)'
-          }}
-          onMouseDown={!confirmed ? startDraw : undefined}
-          onMouseMove={!confirmed ? draw : undefined}
-          onMouseUp={!confirmed ? stopDraw : undefined}
-          onMouseLeave={!confirmed ? stopDraw : undefined}
-          onTouchStart={!confirmed ? startDraw : undefined}
-          onTouchMove={!confirmed ? draw : undefined}
-          onTouchEnd={!confirmed ? stopDraw : undefined}
-        />
-      </div>
-
-      {!confirmed ? (
-        <div style={{ display:'flex', gap:12, marginTop: 4, flexShrink: 0 }}>
-          <button onClick={handleUndo} disabled={isEmpty} style={{ flex:1, padding:'16px', borderRadius:16, fontSize:15, fontWeight:700, background: isEmpty ? '#f1f5f9' : 'white', border:'2px solid #e2e8f0', color: isEmpty ? '#94a3b8' : '#334155', cursor: isEmpty ? 'not-allowed' : 'pointer', transition:'all 0.18s' }}>↩ ย้อนกลับ</button>
-          <button onClick={handleClear} disabled={isEmpty} style={{ flex:1, padding:'16px', borderRadius:16, fontSize:15, fontWeight:700, background: isEmpty ? '#f1f5f9' : 'white', border:'2px solid #e2e8f0', color: isEmpty ? '#94a3b8' : '#334155', cursor: isEmpty ? 'not-allowed' : 'pointer', transition:'all 0.18s' }}>🗑️ ล้างใหม่</button>
-          <button onClick={()=>setConfirmed(true)} disabled={isEmpty} style={{ flex:2, padding:'16px', borderRadius:16, fontSize:15, fontWeight:700, background: isEmpty ? '#94a3b8' : '#0f766e', color: 'white', border:'none', cursor: isEmpty ? 'not-allowed' : 'pointer', transition:'all 0.2s', boxShadow: isEmpty ? 'none' : `0 4px 12px rgba(15,118,110,0.3)` }}>ยืนยันผล ✓</button>
-        </div>
-      ) : (
-        <div style={{ background:'white', padding:'16px', borderRadius:20, border:`1px solid ${MMSE_BORDER}`, flexShrink: 0 }}>
-          <p style={{ fontSize:15, fontWeight:800, color:'var(--mint-text)', marginBottom:12, textAlign:'center' }}>ให้คะแนนผลงานนี้</p>
-          <div style={{ display:'flex', gap:10, marginBottom:12 }}>
-            {[0,1].map(n=>(
-              <button key={n} onClick={()=>onScoreSelect(n)} style={{
-                flex:1, padding:'16px 8px', borderRadius:16, fontSize:18, fontWeight:800,
-                display:'flex', flexDirection:'column', alignItems:'center', gap:6,
-                background: n===1 ? MMSE_BG : '#fff1f1',
-                border: `2px solid ${n===1 ? MMSE_COLOR : '#fca5a5'}`,
-                color: n===1 ? MMSE_COLOR : '#dc2626',
-                cursor:'pointer', transition:'all 0.18s',
-              }}>
-                <span style={{fontSize:28}}>{n===1?'✓':'✗'}</span>
-                <span>{n} คะแนน</span>
-                <span style={{fontSize:13,opacity:0.8,fontWeight:600}}>{n===1?'ทำได้ถูกต้อง':'ไม่ถูกต้อง'}</span>
-              </button>
-            ))}
-          </div>
-          <button onClick={()=>{ setConfirmed(false); }} style={{ width:'100%', padding:'12px', borderRadius:12, background:'var(--mint-surface2)', border:'1px solid var(--mint-border)', color:'var(--mint-text2)', fontSize:14, fontWeight:700, cursor:'pointer' }}>← แก้ไขผลงาน</button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ── main ── */
 export default function MMSEQuiz({ onBack, onComplete, patient }) {
-  const [edu, setEdu] = useState(null);
+  const DRAFT_KEY = 'mmse';
+  const draft = loadDraft(DRAFT_KEY, patient?.name);
 
-  const [oriTimeS, setOriTimeS] = useState(Array(5).fill(null));
-  const [oriPlaceS, setOriPlaceS] = useState(Array(5).fill(null));
-  const [regS, setRegS] = useState(null);
-  
-  const [attMode, setAttMode] = useState('calc');
-  const [attS, setAttS] = useState(null);
-  
-  const [recS, setRecS] = useState(Array(3).fill(null));
-  const [langS, setLangS] = useState({ naming1:null, naming2:null, repeat:null, commands:Array(3).fill(null), read:null, write:null });
-  const [visuoS, setVisuoS] = useState(null);
-  
-  // State สำหรับเปิด Fullscreen Canvas
-  const [fullscreen, setFullscreen] = useState(null); // 'write' หรือ 'draw'
-  
+  const [edu, setEdu] = useState(draft?.edu ?? null);
+  const [oriTimeS, setOriTimeS] = useState(draft?.oriTimeS ?? Array(5).fill(null));
+  const [oriPlaceS, setOriPlaceS] = useState(draft?.oriPlaceS ?? Array(5).fill(null));
+  const [regS, setRegS] = useState(draft?.regS ?? null);
+  const [attMode, setAttMode] = useState(draft?.attMode ?? 'calc');
+  const [attS, setAttS] = useState(draft?.attS ?? null);
+  const [recS, setRecS] = useState(draft?.recS ?? Array(3).fill(null));
+  const [langS, setLangS] = useState(draft?.langS ?? { naming1:null, naming2:null, repeat:null, commands:Array(3).fill(null), read:null, write:null });
+  const [visuoS, setVisuoS] = useState(draft?.visuoS ?? null);
+  const [fullscreen, setFullscreen] = useState(null);
   const [done, setDone] = useState(false);
   const [finalDuration, setFinalDuration] = useState(0);
   const timer = useTimer(true);
+
+  // Auto-save draft on every answer change
+  useEffect(() => {
+    if (done) return;
+    saveDraft(DRAFT_KEY, patient?.name, { edu, oriTimeS, oriPlaceS, regS, attMode, attS, recS, langS, visuoS });
+  }, [edu, oriTimeS, oriPlaceS, regS, attMode, attS, recS, langS, visuoS, done, patient?.name]);
+
+  const handleBack = () => {
+    if (window.confirm('ออกจากการทดสอบ?\nคำตอบที่ตอบไปแล้วจะถูกบันทึกไว้ชั่วคราว')) {
+      onBack();
+    }
+  };
 
   // Calculations
   const oriTimeTotal  = oriTimeS.filter(v=>v===1).length;
@@ -292,7 +107,7 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
   const regTotal      = regS ?? 0;
   const attTotal      = attS ?? 0;
   const recTotal      = recS.filter(v=>v===1).length;
-  const langTotal     = (langS.naming1??0) + (langS.naming2??0) + (langS.repeat??0) + langS.commands.reduce((a,v)=>a+(v??0),0) + (langS.read??0) + (edu==='none'?0:(langS.write??0));
+  const langTotal     = (langS.naming1??0) + (langS.naming2??0) + (langS.repeat??0) + langS.commands.reduce((a,v)=>a+(v??0),0) + (edu==='none'?0:(langS.read??0)) + (edu==='none'?0:(langS.write??0));
   const visuoTotal    = edu==='none'?0:(visuoS??0);
   
   const total = oriTimeTotal + oriPlaceTotal + regTotal + attTotal + recTotal + langTotal + visuoTotal;
@@ -310,11 +125,11 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
     if (!edu) { alert('⚠️ กรุณาเลือกระดับการศึกษาก่อน เนื่องจากมีผลต่อเกณฑ์การแปลผลครับ'); return; }
 
     const allAns = [
-      ...oriTimeS, ...oriPlaceS, regS, attS, ...recS, 
-      langS.naming1, langS.naming2, langS.repeat, ...langS.commands, langS.read
+      ...oriTimeS, ...oriPlaceS, regS, ...recS,
+      langS.naming1, langS.naming2, langS.repeat, ...langS.commands,
     ];
     if (edu !== 'none') {
-      allAns.push(langS.write, visuoS);
+      allAns.push(attS, langS.read, langS.write, visuoS);
     }
 
     if (allAns.includes(null)) {
@@ -325,6 +140,7 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
     timer.stop();
     setFinalDuration(duration);
     setDone(true);
+    clearDraft(DRAFT_KEY, patient?.name);
 
     const resText = impaired ? `มีแนวโน้มภาวะสมองเสื่อม (จุดตัด ≤ ${cutoff})` : 'อยู่ในเกณฑ์ปกติ';
 
@@ -341,7 +157,7 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
           "1. Orientation for Time (5)": oriTimeTotal,
           "2. Orientation for Place (5)": oriPlaceTotal,
           "3. Registration (3)": regTotal,
-          [`4. Attention (${attMode === 'calc' ? 'คิดเลข' : 'สะกดคำ'}) (5)`]: attTotal,
+          [`4. Attention (${edu === 'none' ? 'ข้ามอัตโนมัติ' : attMode === 'calc' ? 'คิดเลข' : 'สะกดคำ'}) (${edu === 'none' ? 0 : 5})`]: attTotal,
           "5. Recall (3)": recTotal,
           "6. Language (8)": langTotal,
           "7. Visuospatial (1)": visuoTotal,
@@ -406,9 +222,9 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
       {l:'Orientation Time',  s:oriTimeTotal,  m:5},
       {l:'Orientation Place', s:oriPlaceTotal, m:5},
       {l:'Registration',      s:regTotal,      m:3},
-      {l:'Attention',         s:attTotal,      m:5},
+      {l:'Attention',         s:attTotal,      m:edu==='none'?0:5},
       {l:'Recall',            s:recTotal,      m:3},
-      {l:'Language',          s:langTotal,     m:edu==='none'?7:8},
+      {l:'Language',          s:langTotal,     m:edu==='none'?5:8},
       {l:'Visuospatial',      s:visuoTotal,    m:edu==='none'?0:1},
     ];
     return (
@@ -441,11 +257,11 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
             <div style={{ position:'relative',width:130,height:130,margin:'0 auto 12px' }}>
               <svg width="130" height="130" style={{ position:'absolute',inset:0 }}>
                 <circle cx="65" cy="65" r="56" fill="none" stroke="var(--mint-border2)" strokeWidth="8"/>
-                <circle cx="65" cy="65" r="56" fill="none" stroke={impaired?'var(--mint-warn)':MMSE_COLOR} strokeWidth="8" strokeDasharray={`${(total/30)*351.9} 351.9`} strokeLinecap="round" transform="rotate(-90 65 65)" style={{ transition:'stroke-dasharray 0.9s ease' }}/>
+                <circle cx="65" cy="65" r="56" fill="none" stroke={impaired?'var(--mint-warn)':MMSE_COLOR} strokeWidth="8" strokeDasharray={`${(total/(edu==='none'?22:30))*351.9} 351.9`} strokeLinecap="round" transform="rotate(-90 65 65)" style={{ transition:'stroke-dasharray 0.9s ease' }}/>
               </svg>
               <div style={{ position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center' }}>
                 <span style={{ fontSize:34,fontWeight:800,color:impaired?'var(--mint-warn)':MMSE_COLOR }}>{total}</span>
-                <span style={{ fontSize:12,color:'var(--mint-muted)' }}>/ 30</span>
+                <span style={{ fontSize:12,color:'var(--mint-muted)' }}>/ {edu==='none'?22:30}</span>
               </div>
             </div>
             <p style={{ fontSize:11,color:'var(--mint-muted)',letterSpacing:'0.08em',textTransform:'uppercase' }}>คะแนนรวม MMSE</p>
@@ -484,13 +300,13 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
   return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column' }}>
       <div style={{ position:'sticky',top:0,zIndex:50,background:'rgba(240,253,250,0.9)',backdropFilter:'blur(18px)',borderBottom:`1px solid ${MMSE_BORDER}`,padding:'0 16px',height:56,display:'flex',alignItems:'center',justifyContent:'space-between' }}>
-        <button onClick={onBack} style={{ background:'none',border:'none',color:'var(--mint-muted)',cursor:'pointer',fontSize:13,fontWeight:600,padding:'8px 0' }}>← กลับ</button>
+        <button onClick={handleBack} style={{ background:'none',border:'none',color:'var(--mint-muted)',cursor:'pointer',fontSize:13,fontWeight:600,padding:'8px 0' }}>← กลับ</button>
         <div style={{ display:'flex',alignItems:'center',gap:6 }}>
           <Cross s={14} c={MMSE_COLOR}/>
           <span style={{ fontSize:14,fontWeight:700,color:'var(--mint-text)' }}>MMSE-Thai</span>
         </div>
         <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-          <div style={{ fontSize:12,fontWeight:700,color:MMSE_COLOR,background:MMSE_BG,border:`1px solid ${MMSE_BORDER}`,borderRadius:20,padding:'3px 10px' }}>{total}/30</div>
+          <div style={{ fontSize:12,fontWeight:700,color:MMSE_COLOR,background:MMSE_BG,border:`1px solid ${MMSE_BORDER}`,borderRadius:20,padding:'3px 10px' }}>{total}/{edu==='none'?22:30}</div>
           <div style={{ fontSize:12,fontWeight:700,color:'var(--mint-text2)',background:'white',border:'1px solid var(--mint-border)',borderRadius:20,padding:'3px 10px',fontVariantNumeric:'tabular-nums',display:'flex',alignItems:'center',gap:4 }}>
             <span>⏱</span><span>{timer.fmt}</span>
           </div>
@@ -551,32 +367,40 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
           </div>
         </Section>
 
-        <Section num="4" title="Attention / Calculation" max={5} score={attTotal}>
-          <div style={{ background:'#fff7ed', border:'1px solid #fed7aa', borderRadius:12, padding:'12px 14px', marginBottom:16 }}>
-            <p style={{ fontSize:13, fontWeight:700, color:'#c2410c', marginBottom:8 }}>เลือกรูปแบบการประเมินข้อ 4</p>
-            <div style={{ display:'flex', gap:8 }}>
-              <button onClick={() => { setAttMode('calc'); setAttS(null); }} style={{ flex:1, padding:'8px', borderRadius:8, fontSize:12, fontWeight:700, border:`1.5px solid ${attMode === 'calc' ? '#c2410c' : '#fed7aa'}`, background: attMode === 'calc' ? '#ffedd5' : 'white', color: attMode === 'calc' ? '#9a3412' : '#fb923c', cursor:'pointer' }}>🧮 ลบเลข 100 ทีละ 7</button>
-              <button onClick={() => { setAttMode('spell'); setAttS(null); }} style={{ flex:1, padding:'8px', borderRadius:8, fontSize:12, fontWeight:700, border:`1.5px solid ${attMode === 'spell' ? '#c2410c' : '#fed7aa'}`, background: attMode === 'spell' ? '#ffedd5' : 'white', color: attMode === 'spell' ? '#9a3412' : '#fb923c', cursor:'pointer' }}>🔤 สะกด มะนาว ถอยหลัง</button>
+        <Section num="4" title="Attention / Calculation" max={edu==='none'?0:5} score={attTotal}>
+          {edu === 'none' ? (
+            <div style={{ padding:'12px', background:'#fff1f1', borderRadius:10, fontSize:12, color:'#dc2626' }}>
+              * ข้ามอัตโนมัติ เนื่องจากผู้ถูกทดสอบไม่เคยเรียนหนังสือ จึงไม่คุ้นเคยกับการคำนวณหรือการสะกดคำ
             </div>
-          </div>
-          <p style={{ fontSize:12,color:'var(--mint-muted)',marginBottom:12 }}>กดจำนวนครั้งที่ตอบถูกต้องต่อเนื่อง (หยุดนับเมื่อตอบผิดครั้งแรก)</p>
-          <div style={{ display:'flex',flexDirection:'column',gap:6,marginBottom:14 }}>
-            {attenQuestions.map((q,i)=>{
-              const checked = attS !== null && i < (attS??0);
-              return (
-                <div key={i} style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:11, background: checked ? MMSE_BG : 'var(--mint-surface2)', border:`1.5px solid ${checked ? MMSE_COLOR : 'var(--mint-border2)'}` }}>
-                  <div style={{ width:22,height:22,borderRadius:6,flexShrink:0, border:`2px solid ${checked?MMSE_COLOR:'var(--mint-border)'}`, background:checked?MMSE_COLOR:'white', display:'flex',alignItems:'center',justifyContent:'center', fontSize:13,color:'white',fontWeight:700 }}>{checked?'✓':''}</div>
-                  <span style={{ fontSize:14,fontWeight:600,color:checked?MMSE_COLOR:'var(--mint-text)',flex:1 }}>{q}</span>
+          ) : (
+            <>
+              <div style={{ background:'#fff7ed', border:'1px solid #fed7aa', borderRadius:12, padding:'12px 14px', marginBottom:16 }}>
+                <p style={{ fontSize:13, fontWeight:700, color:'#c2410c', marginBottom:8 }}>เลือกรูปแบบการประเมินข้อ 4</p>
+                <div style={{ display:'flex', gap:8 }}>
+                  <button onClick={() => { setAttMode('calc'); setAttS(null); }} style={{ flex:1, padding:'8px', borderRadius:8, fontSize:12, fontWeight:700, border:`1.5px solid ${attMode === 'calc' ? '#c2410c' : '#fed7aa'}`, background: attMode === 'calc' ? '#ffedd5' : 'white', color: attMode === 'calc' ? '#9a3412' : '#fb923c', cursor:'pointer' }}>🧮 ลบเลข 100 ทีละ 7</button>
+                  <button onClick={() => { setAttMode('spell'); setAttS(null); }} style={{ flex:1, padding:'8px', borderRadius:8, fontSize:12, fontWeight:700, border:`1.5px solid ${attMode === 'spell' ? '#c2410c' : '#fed7aa'}`, background: attMode === 'spell' ? '#ffedd5' : 'white', color: attMode === 'spell' ? '#9a3412' : '#fb923c', cursor:'pointer' }}>🔤 สะกด มะนาว ถอยหลัง</button>
                 </div>
-              );
-            })}
-          </div>
-          <p style={{ fontSize:12,color:'var(--mint-text2)',marginBottom:8,fontWeight:600 }}>ตอบถูกต้องต่อเนื่องกี่ครั้ง?</p>
-          <div style={{ display:'flex',gap:6 }}>
-            {[0,1,2,3,4,5].map(n=>(
-              <button key={n} onClick={()=>setAttS(n)} style={{ flex:1,padding:'11px 2px',borderRadius:10,fontSize:14,fontWeight:700, border:'1.5px solid',cursor:'pointer', background:attS===n?MMSE_BG:'var(--mint-surface2)', borderColor:attS===n?MMSE_COLOR:'var(--mint-border)', color:attS===n?MMSE_COLOR:'var(--mint-muted)' }}>{n}</button>
-            ))}
-          </div>
+              </div>
+              <p style={{ fontSize:12,color:'var(--mint-muted)',marginBottom:12 }}>กดจำนวนครั้งที่ตอบถูกต้องต่อเนื่อง (หยุดนับเมื่อตอบผิดครั้งแรก)</p>
+              <div style={{ display:'flex',flexDirection:'column',gap:6,marginBottom:14 }}>
+                {attenQuestions.map((q,i)=>{
+                  const checked = attS !== null && i < (attS??0);
+                  return (
+                    <div key={i} style={{ display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:11, background: checked ? MMSE_BG : 'var(--mint-surface2)', border:`1.5px solid ${checked ? MMSE_COLOR : 'var(--mint-border2)'}` }}>
+                      <div style={{ width:22,height:22,borderRadius:6,flexShrink:0, border:`2px solid ${checked?MMSE_COLOR:'var(--mint-border)'}`, background:checked?MMSE_COLOR:'white', display:'flex',alignItems:'center',justifyContent:'center', fontSize:13,color:'white',fontWeight:700 }}>{checked?'✓':''}</div>
+                      <span style={{ fontSize:14,fontWeight:600,color:checked?MMSE_COLOR:'var(--mint-text)',flex:1 }}>{q}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p style={{ fontSize:12,color:'var(--mint-text2)',marginBottom:8,fontWeight:600 }}>ตอบถูกต้องต่อเนื่องกี่ครั้ง?</p>
+              <div style={{ display:'flex',gap:6 }}>
+                {[0,1,2,3,4,5].map(n=>(
+                  <button key={n} onClick={()=>setAttS(n)} style={{ flex:1,padding:'11px 2px',borderRadius:10,fontSize:14,fontWeight:700, border:'1.5px solid',cursor:'pointer', background:attS===n?MMSE_BG:'var(--mint-surface2)', borderColor:attS===n?MMSE_COLOR:'var(--mint-border)', color:attS===n?MMSE_COLOR:'var(--mint-muted)' }}>{n}</button>
+                ))}
+              </div>
+            </>
+          )}
         </Section>
 
         <Section num="5" title="Recall" max={3} score={recTotal}>
@@ -601,7 +425,7 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
           </div>
         </Section>
 
-        <Section num="6" title="Naming & Language" max={edu==='none'?7:8} score={langTotal}>
+        <Section num="6" title="Naming & Language" max={edu==='none'?5:8} score={langTotal}>
           <div style={{ display:'flex',flexDirection:'column',gap:10 }}>
             <SubQ label="6.1 ชี้ที่นาฬิกาข้อมือ → 'สิ่งนี้เรียกว่าอะไร?'" val={langS.naming1} onChange={v=>setLangS(s=>({...s,naming1:v}))} />
             <SubQ label="6.2 ชี้ที่ดินสอ → 'สิ่งนี้เรียกว่าอะไร?'" val={langS.naming2} onChange={v=>setLangS(s=>({...s,naming2:v}))} />
@@ -627,13 +451,19 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
               ))}
             </div>
 
-            <div style={{ background:'var(--mint-surface2)',border:'1px solid var(--mint-border2)',borderRadius:12,padding:'12px 14px' }}>
-              <p style={{ fontSize:13,color:'var(--mint-text2)',fontWeight:500,marginBottom:10 }}>6.5 อ่านและทำตาม</p>
-              <div style={{ textAlign:'center',fontSize:26,fontWeight:900,color:'var(--mint-text)',border:'1.5px solid var(--mint-border)',borderRadius:12,padding:16,marginBottom:10,background:'white',letterSpacing:'0.08em', boxShadow:'var(--shadow-sm)' }}>
-                หลับตาของท่าน
+            {edu === 'none' ? (
+              <div style={{ padding:'12px', background:'#fff1f1', borderRadius:10, fontSize:12, color:'#dc2626' }}>
+                * ข้อ 6.5 อ่านและทำตาม: ข้ามอัตโนมัติ เนื่องจากผู้ถูกทดสอบอ่านหนังสือไม่ออก
               </div>
-              <YN val={langS.read} onChange={v=>setLangS(s=>({...s,read:v}))} />
-            </div>
+            ) : (
+              <div style={{ background:'var(--mint-surface2)',border:'1px solid var(--mint-border2)',borderRadius:12,padding:'12px 14px' }}>
+                <p style={{ fontSize:13,color:'var(--mint-text2)',fontWeight:500,marginBottom:10 }}>6.5 อ่านและทำตาม</p>
+                <div style={{ textAlign:'center',fontSize:26,fontWeight:900,color:'var(--mint-text)',border:'1.5px solid var(--mint-border)',borderRadius:12,padding:16,marginBottom:10,background:'white',letterSpacing:'0.08em', boxShadow:'var(--shadow-sm)' }}>
+                  หลับตาของท่าน
+                </div>
+                <YN val={langS.read} onChange={v=>setLangS(s=>({...s,read:v}))} />
+              </div>
+            )}
 
             {/* 🌟 6.6 เขียนประโยค */}
             {edu === 'none' ? (
@@ -705,11 +535,11 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
             </span>
           </div>
           <div style={{ height:8,borderRadius:4,background:'var(--mint-border2)',overflow:'hidden',marginBottom:20 }}>
-            <div style={{ height:'100%',borderRadius:4,background:`linear-gradient(90deg,${!impaired?`${MMSE_COLOR},#0f766e`:'var(--mint-warn),#fcd34d'})`,width:`${(total/30)*100}%`,transition:'width 0.5s ease' }}/>
+            <div style={{ height:'100%',borderRadius:4,background:`linear-gradient(90deg,${!impaired?`${MMSE_COLOR},#0f766e`:'var(--mint-warn),#fcd34d'})`,width:`${(total/(edu==='none'?22:30))*100}%`,transition:'width 0.5s ease' }}/>
           </div>
           <ActionBtn onClick={handleFinish} variant="primary">ดูผลการประเมิน →</ActionBtn>
           <div style={{ height:8 }}/>
-          <ActionBtn onClick={onBack} variant="outline">← กลับหน้าหลัก</ActionBtn>
+          <ActionBtn onClick={handleBack} variant="outline">← กลับหน้าหลัก</ActionBtn>
         </div>
       </div>
     </div>

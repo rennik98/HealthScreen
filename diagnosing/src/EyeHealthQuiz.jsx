@@ -426,11 +426,17 @@ export default function EyeHealthQuiz({ onBack, onComplete, patient }) {
   }
 
   /* ── Screening Phase ── */
+  const handleBack = () => {
+    if (window.confirm('ออกจากการทดสอบ?\nคำตอบที่ตอบไปแล้วจะถูกบันทึกไว้ชั่วคราว')) {
+      onBack();
+    }
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* topbar */}
       <div style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(240,250,248,0.9)', backdropFilter: 'blur(18px)', borderBottom: '1px solid var(--mint-border)', padding: '0 16px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--mint-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: '8px 0' }}>← กลับ</button>
+        <button onClick={handleBack} style={{ background: 'none', border: 'none', color: 'var(--mint-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: '8px 0' }}>← กลับ</button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Cross s={14} c={EYE_COLOR} />
           <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--mint-text)' }}>การคัดกรองสุขภาวะทางตา</span>

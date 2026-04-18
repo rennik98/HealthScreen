@@ -1,42 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-
-/* ── useTimer hook ── */
-function useTimer(autoStart = false) {
-  const [elapsed, setElapsed] = useState(0);
-  const elapsedRef  = useRef(0);
-  const intervalRef = useRef(null);
-  const startedAt   = useRef(null);
-  const stoppedRef  = useRef(false);
-
-  const start = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    stoppedRef.current = false;
-    startedAt.current = Date.now() - elapsedRef.current * 1000;
-    intervalRef.current = setInterval(() => {
-      if (stoppedRef.current) return;
-      const s = Math.floor((Date.now() - startedAt.current) / 1000);
-      elapsedRef.current = s;
-      setElapsed(s);
-    }, 500);
-  }, []);
-
-  const stop = useCallback(() => {
-    stoppedRef.current = true;
-    clearInterval(intervalRef.current);
-    intervalRef.current = null;
-  }, []);
-
-  const snapshot = useCallback(() => elapsedRef.current, []);
-
-  useEffect(() => {
-    if (autoStart) start();
-    return () => { clearInterval(intervalRef.current); intervalRef.current = null; };
-  }, [autoStart, start]);
-
-  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
-
-  return { elapsed, fmt: fmt(elapsed), start, stop, snapshot };
-}
+import { useTimer } from './shared/useTimer';
+import { loadDraft, saveDraft, clearDraft } from './shared/quizStorage';
 
 /* ── Word sets (7 sets × 3 words each) ── */
 const WORD_SETS = [
@@ -423,11 +387,25 @@ function WordRecall({ words, onConfirm }) {
 
 /* ── main ── */
 export default function MiniCogQuiz({ onBack, onComplete, patient }) {
-  const [wordSetIdx, setWordSetIdx] = useState(() => Math.floor(Math.random() * WORD_SETS.length));
-  const [step,       setStep]       = useState(1);
-  const [clockScore, setCS]         = useState(null);
+  const DRAFT_KEY = 'minicog';
+  const draft = loadDraft(DRAFT_KEY, patient?.name);
+
+  const [wordSetIdx, setWordSetIdx] = useState(draft?.wordSetIdx ?? Math.floor(Math.random() * WORD_SETS.length));
+  const [step,       setStep]       = useState(draft?.step ?? 1);
+  const [clockScore, setCS]         = useState(draft?.clockScore ?? null);
   const [result,     setResult]     = useState(null);
   const timer = useTimer();
+
+  useEffect(() => {
+    if (result) return;
+    saveDraft(DRAFT_KEY, patient?.name, { wordSetIdx, step, clockScore });
+  }, [wordSetIdx, step, clockScore, result, patient?.name]);
+
+  const handleBack = () => {
+    if (window.confirm('ออกจากการทดสอบ?\nคำตอบที่ตอบไปแล้วจะถูกบันทึกไว้ชั่วคราว')) {
+      onBack();
+    }
+  };
 
   const currentWords = WORD_SETS[wordSetIdx];
 
@@ -449,6 +427,7 @@ export default function MiniCogQuiz({ onBack, onComplete, patient }) {
     const r     = { clockScore: cs, recallScore: rc, total, impaired: total <= 3, duration };
     setResult(r);
     setStep(4);
+    clearDraft(DRAFT_KEY, patient?.name);
     if (onComplete) {
       onComplete({ 
         type: 'Mini-Cog', 
@@ -478,7 +457,7 @@ export default function MiniCogQuiz({ onBack, onComplete, patient }) {
         padding: '0 16px', height: 56,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--mint-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: '8px 0' }}>← กลับ</button>
+        <button onClick={handleBack} style={{ background: 'none', border: 'none', color: 'var(--mint-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: '8px 0' }}>← กลับ</button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Cross s={14} />
           <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--mint-text)' }}>Mini-Cog™</span>

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { saveLocalResult, loadLocalResults } from './shared/quizStorage';
 import MiniCogQuiz from './MiniCogQuiz';
 import TMSEQuiz from './TMSEQuiz';
 import MoCAQuiz from './MoCAQuiz';
@@ -105,17 +106,18 @@ const Toast = ({ message, type = 'success', onClose }) => {
   );
 };
 
-const PatientForm = ({ quizType, onConfirm, onCancel }) => {
-  const [name, setName] = useState('');
-  const [age,  setAge]  = useState('');
-  const [gender, setGender] = useState(''); // 👈 เพิ่ม State เพศ
-  const [err,  setErr]  = useState('');
+const PatientForm = ({ quizType, onConfirm, onCancel, prefill }) => {
+  const [name,   setName]   = useState(prefill?.name   ?? '');
+  const [age,    setAge]    = useState(prefill?.age     ? String(prefill.age) : '');
+  const [gender, setGender] = useState(prefill?.gender  ?? '');
+  const [hn,     setHn]     = useState(prefill?.hn      ?? '');
+  const [err,    setErr]    = useState('');
 
   const handleSubmit = () => {
     if (!name.trim()) { setErr('กรุณากรอกชื่อ-นามสกุล'); return; }
     if (!age || isNaN(age) || Number(age) < 1 || Number(age) > 120) { setErr('กรุณากรอกอายุที่ถูกต้อง (1–120)'); return; }
-    if (!gender) { setErr('กรุณาระบุเพศ'); return; } // 👈 ดักการกรอกเพศ
-    onConfirm({ name: name.trim(), age: parseInt(age), gender });
+    if (!gender) { setErr('กรุณาระบุเพศ'); return; }
+    onConfirm({ name: name.trim(), age: parseInt(age), gender, hn: hn.trim() });
   };
 
   const typeConfigs = {
@@ -165,6 +167,10 @@ const PatientForm = ({ quizType, onConfirm, onCancel }) => {
               ))}
             </div>
           </div>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--mint-text2)', display: 'block', marginBottom: 6 }}>เลข HN / รหัสผู้ป่วย <span style={{ color: 'var(--mint-muted)', fontWeight: 400 }}>(ไม่บังคับ)</span></label>
+            <input type="text" value={hn} placeholder="เช่น HN-00123" onChange={e => { setHn(e.target.value); setErr(''); }} onKeyDown={e => e.key === 'Enter' && handleSubmit()} style={{ width: '100%', padding: '12px 14px', background: 'var(--mint-surface2)', border: '1.5px solid var(--mint-border)', borderRadius: 12, fontSize: 14, fontWeight: 600, color: 'var(--mint-text)', outline: 'none', boxSizing: 'border-box' }} onFocus={e => e.target.style.borderColor = cfg.color} onBlur={e => e.target.style.borderColor = 'var(--mint-border)'} />
+          </div>
         </div>
 
         {err && <div style={{ padding: '9px 14px', borderRadius: 10, marginBottom: 14, background: '#fff1f1', border: '1px solid #fca5a5', fontSize: 13, color: '#dc2626', fontWeight: 600 }}>⚠️ {err}</div>}
@@ -177,7 +183,7 @@ const PatientForm = ({ quizType, onConfirm, onCancel }) => {
   );
 };
 
-const ResultSummaryModal = ({ result, patient, onClose, onViewAll }) => {
+const ResultSummaryModal = ({ result, patient, onClose, onViewAll, onContinue }) => {
   if (!result) return null;
   const isMini = result.type === 'Mini-Cog';
   const isTMSE = result.type === 'TMSE';
@@ -264,6 +270,7 @@ const ResultSummaryModal = ({ result, patient, onClose, onViewAll }) => {
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {onContinue && <button onClick={onContinue} style={{ width: '100%', padding: '13px', borderRadius: 13, fontSize: 14, fontWeight: 700, background: 'linear-gradient(135deg,#0d9488,#0f766e)', color: 'white', border: 'none', cursor: 'pointer' }}>🔄 ทำแบบทดสอบอื่นกับผู้ป่วยคนนี้</button>}
             <button onClick={onViewAll} style={{ width: '100%', padding: '13px', borderRadius: 13, fontSize: 14, fontWeight: 700, background: tc.grad, color: 'white', border: 'none', cursor: 'pointer' }}>📋 ดูผลทั้งหมด</button>
             <button onClick={onClose} style={{ width: '100%', padding: '12px', borderRadius: 13, fontSize: 14, fontWeight: 700, background: 'var(--mint-surface2)', border: '1.5px solid var(--mint-border)', color: 'var(--mint-text2)', cursor: 'pointer' }}>← กลับหน้าหลัก</button>
           </div>
@@ -273,14 +280,52 @@ const ResultSummaryModal = ({ result, patient, onClose, onViewAll }) => {
   );
 };
 
-// 👇 เพิ่มเพศเข้าไปในไฟล์ Export CSV
+const ResultDetailModal = ({ result, onClose }) => {
+  if (!result) return null;
+  const bd = result.breakdown ?? {};
+  const entries = Object.entries(bd);
+  const tc = TYPE_COLORS[result.type] || 'var(--mint-primary)';
+  const tcBg = TYPE_BG[result.type] || 'var(--mint-primary-xl)';
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(15,43,40,0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, overflowY: 'auto' }}>
+      <div style={{ background: 'white', borderRadius: 22, width: '100%', maxWidth: 520, boxShadow: '0 24px 80px rgba(14,159,142,0.2)', border: '1.5px solid var(--mint-border)', animation: 'scaleIn 0.28s ease both', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--mint-border2)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0, background: tcBg }}>
+          <div>
+            <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--mint-text)' }}>{result.name}{result.hn ? <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--mint-muted)', marginLeft: 8 }}>HN: {result.hn}</span> : ''}</p>
+            <p style={{ fontSize: 12, color: tc, fontWeight: 600, marginTop: 3 }}>{result.type}</p>
+            <p style={{ fontSize: 11, color: 'var(--mint-muted)', marginTop: 2 }}>{result.datetime}</p>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: 'var(--mint-muted)', lineHeight: 1, flexShrink: 0 }}>×</button>
+        </div>
+        <div style={{ overflowY: 'auto', padding: '16px 24px 8px', flex: 1 }}>
+          {entries.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--mint-muted)', textAlign: 'center', padding: '32px 0', lineHeight: 1.8 }}>ไม่มีข้อมูลรายละเอียด<br/><span style={{ fontSize: 11 }}>(ผลที่บันทึกก่อนอัปเดตระบบ หรือโหลดจาก Google Sheets)</span></p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {entries.map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '9px 12px', background: 'var(--mint-surface2)', border: '1px solid var(--mint-border2)', borderRadius: 10, gap: 12 }}>
+                  <span style={{ fontSize: 12, color: 'var(--mint-text2)', flex: 1, lineHeight: 1.5 }}>{k}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: tc, flexShrink: 0 }}>{String(v)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div style={{ padding: '14px 24px 18px', borderTop: '1px solid var(--mint-border2)', flexShrink: 0 }}>
+          <button onClick={onClose} style={{ width: '100%', padding: '11px', borderRadius: 12, fontSize: 14, fontWeight: 700, background: 'var(--mint-surface2)', border: '1.5px solid var(--mint-border)', color: 'var(--mint-text2)', cursor: 'pointer' }}>ปิด</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function exportCSV(results) {
   const BOM = '\uFEFF';
-  const headers = ['ลำดับ','ชื่อ-นามสกุล','อายุ','เพศ','ประเภทแบบทดสอบ','คะแนนรวม','คะแนนสูงสุด','การแปลผล','วันที่/เวลา','เวลาที่ใช้ (วินาที)','เวลาที่ใช้ (นาที:วินาที)'];
+  const headers = ['ลำดับ','HN/รหัสผู้ป่วย','ชื่อ-นามสกุล','อายุ','เพศ','ประเภทแบบทดสอบ','คะแนนรวม','คะแนนสูงสุด','การแปลผล','วันที่/เวลา','เวลาที่ใช้ (วินาที)','เวลาที่ใช้ (นาที:วินาที)'];
   const rows = results.map((r, i) => {
     const sec = r.duration ?? 0;
     const fmt = `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;
-    return [i+1, r.name, r.age, r.gender, r.type, r.totalScore, r.maxScore, r.impaired ? 'พบปัญหา/บกพร่อง' : 'อยู่ในเกณฑ์ปกติ', r.datetime, sec, fmt]
+    return [i+1, r.hn || '-', r.name, r.age, r.gender, r.type, r.totalScore, r.maxScore, r.impaired ? 'พบปัญหา/บกพร่อง' : 'อยู่ในเกณฑ์ปกติ', r.datetime, sec, fmt]
       .map(v => '"' + String(v).replace(/"/g,'""') + '"').join(',');
   });
   const csv  = BOM + [headers.map(h => '"'+h+'"').join(','), ...rows].join('\r\n');
@@ -301,64 +346,86 @@ async function saveToSheets(record) {
 }
 
 async function loadFromSheets() {
-  if (!isConfigured()) return [];
+  const local = loadLocalResults();
+  if (!isConfigured()) return local;
   const url = `${SCRIPT_URL}?t=${Date.now()}`;
   const res = await fetch(url, { redirect: 'follow' });
   const text = await res.text();
   let json;
   try { json = JSON.parse(text); } catch { throw new Error('Invalid response: ' + text.slice(0, 100)); }
   if (!json.success) throw new Error(json.error || 'Unknown error');
-  return (json.data || []).map(row => ({
-    name:       String(row[1] ?? ''),
-    age:        row[2],
-    gender:     String(row[3] ?? '-'), // 👈 3. ดึงค่าเพศจาก Sheet (อยู่ตำแหน่งที่ 3)
-    type:       String(row[4] ?? ''),  // ขยับ Index ที่เหลือลง 1 ช่อง
-    totalScore: Number(row[5]),
-    maxScore:   Number(row[6]),
-    impaired:   String(row[7]).includes('บกพร่อง') || String(row[7]).includes('Impairment') || String(row[7]).includes('พบปัญหา') || String(row[7]).includes('ควรส่งต่อ') || String(row[7]).includes('พบความเสี่ยง') || String(row[7]).includes('ซึมเศร้า') || String(row[7]).includes('เสี่ยงฆ่าตัวตาย') || String(row[7]).includes('เสี่ยงหกล้ม') || String(row[7]).includes('เสี่ยงต่อภาวะมวลกล้ามเนื้อ') || String(row[7]).includes('ขาดสารอาหาร') || String(row[7]).includes('ติดเตียง') || String(row[7]).includes('ติดบ้าน') || String(row[7]).includes('เปราะบาง') || String(row[7]).includes('แนวโน้มภาวะสมองเสื่อม'),
-    datetime: (() => {
-      const raw = String(row[8] ?? ''); // ขยับ Index
-      const d = new Date(raw);
-      if (!isNaN(d) && raw.trim() !== '') {
-        const monthNames = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-        let year = d.getFullYear();
-        if (year < 2500) year += 543;
-        return `${d.getDate()} ${monthNames[d.getMonth()]} ${year} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-      }
-      return raw;
-    })(),
-    duration: Number(row[9]) || 0, // ขยับ Index
-    breakdown: {},
-  }));
+  return (json.data || []).map(row => {
+    const name = String(row[1] ?? '');
+    const type = String(row[4] ?? '');
+    // Merge breakdown + hn from local storage (Google Sheets doesn't store these)
+    const localMatch = local.find(l => l.name === name && l.type === type);
+    return {
+      hn:         localMatch?.hn ?? '',
+      name,
+      age:        row[2],
+      gender:     String(row[3] ?? '-'),
+      type,
+      totalScore: Number(row[5]),
+      maxScore:   Number(row[6]),
+      impaired:   String(row[7]).includes('บกพร่อง') || String(row[7]).includes('Impairment') || String(row[7]).includes('พบปัญหา') || String(row[7]).includes('ควรส่งต่อ') || String(row[7]).includes('พบความเสี่ยง') || String(row[7]).includes('ซึมเศร้า') || String(row[7]).includes('เสี่ยงฆ่าตัวตาย') || String(row[7]).includes('เสี่ยงหกล้ม') || String(row[7]).includes('เสี่ยงต่อภาวะมวลกล้ามเนื้อ') || String(row[7]).includes('ขาดสารอาหาร') || String(row[7]).includes('ติดเตียง') || String(row[7]).includes('ติดบ้าน') || String(row[7]).includes('เปราะบาง') || String(row[7]).includes('แนวโน้มภาวะสมองเสื่อม'),
+      datetime: (() => {
+        const raw = String(row[8] ?? '');
+        const d = new Date(raw);
+        if (!isNaN(d) && raw.trim() !== '') {
+          const monthNames = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+          let year = d.getFullYear();
+          if (year < 2500) year += 543;
+          return `${d.getDate()} ${monthNames[d.getMonth()]} ${year} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        }
+        return raw;
+      })(),
+      duration:  Number(row[9]) || 0,
+      breakdown: localMatch?.breakdown ?? {},
+      timestamp: localMatch?.timestamp,
+    };
+  });
 }
 
 const TYPE_COLORS = { 'Mini-Cog': 'var(--mint-primary)', 'TMSE': 'var(--mint-blue)', 'MoCA': '#8b5cf6', 'MMSE (Mini-Mental State)': '#0d9488', 'Oral Health': '#0891b2', 'Eye Health': '#7c3aed', 'Bone and Joint': '#ea580c', 'Depression (2Q/9Q)': '#e11d48', 'Suicide Risk (8Q)': '#dc2626', 'Fall Risk (TUGT)': '#059669', 'MNA (Malnutrition)': '#d97706', 'Modified MSRA-5': '#d97706', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#4f46e5', 'Frail Scale (ความเปราะบาง)': '#4f46e5' };
 const TYPE_BG = { 'Mini-Cog': 'var(--mint-primary-xl)', 'TMSE': 'var(--mint-blue-xl)', 'MoCA': '#f3e8ff', 'MMSE (Mini-Mental State)': '#f0fdfa', 'Oral Health': '#ecfeff', 'Eye Health': '#f5f3ff', 'Bone and Joint': '#fff7ed', 'Depression (2Q/9Q)': '#fff1f2', 'Suicide Risk (8Q)': '#fef2f2', 'Fall Risk (TUGT)': '#ecfdf5', 'MNA (Malnutrition)': '#fffbeb', 'Modified MSRA-5': '#fffbeb', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#e0e7ff', 'Frail Scale (ความเปราะบาง)': '#e0e7ff' };
 
 const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('All');
-  const [sortBy, setSortBy] = useState('date-desc');
+  const [searchTerm,    setSearchTerm]    = useState('');
+  const [filterType,    setFilterType]    = useState('All');
+  const [sortBy,        setSortBy]        = useState('date-desc');
+  const [dateFrom,      setDateFrom]      = useState('');
+  const [dateTo,        setDateTo]        = useState('');
+  const [filterImpaired,setFilterImpaired]= useState('all');
+  const [detailResult,  setDetailResult]  = useState(null);
+
   const uniqueTypes = [...new Set(results.map(r => r.type))];
   const processedResults = results.map((r, i) => ({ ...r, originalIndex: i }));
 
   const filtered = processedResults.filter(r => {
-    const matchName = r.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchType = filterType === 'All' ? true : r.type === filterType;
-    return matchName && matchType;
+    const matchName     = r.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchType     = filterType === 'All' || r.type === filterType;
+    const matchImpaired = filterImpaired === 'all' || (filterImpaired === 'impaired' ? r.impaired : !r.impaired);
+    let   matchDate     = true;
+    if (r.timestamp) {
+      if (dateFrom) matchDate = matchDate && r.timestamp >= new Date(dateFrom).getTime();
+      if (dateTo)   matchDate = matchDate && r.timestamp <= new Date(dateTo + 'T23:59:59').getTime();
+    }
+    return matchName && matchType && matchImpaired && matchDate;
   });
 
   filtered.sort((a, b) => {
     if (sortBy === 'date-desc') return b.originalIndex - a.originalIndex;
-    if (sortBy === 'date-asc') return a.originalIndex - b.originalIndex;
-    if (sortBy === 'name-asc') return a.name.localeCompare(b.name, 'th');
-    if (sortBy === 'age-asc') return (Number(a.age) || 0) - (Number(b.age) || 0);
-    if (sortBy === 'age-desc') return (Number(b.age) || 0) - (Number(a.age) || 0);
+    if (sortBy === 'date-asc')  return a.originalIndex - b.originalIndex;
+    if (sortBy === 'name-asc')  return a.name.localeCompare(b.name, 'th');
+    if (sortBy === 'age-asc')   return (Number(a.age) || 0) - (Number(b.age) || 0);
+    if (sortBy === 'age-desc')  return (Number(b.age) || 0) - (Number(a.age) || 0);
     return 0;
   });
 
   return (
     <div className="fade-up">
+      {detailResult && <ResultDetailModal result={detailResult} onClose={() => setDetailResult(null)} />}
+
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20, gap: 12 }}>
         <div>
           <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--mint-text)' }}>ผลการทดสอบทั้งหมด</h2>
@@ -366,22 +433,28 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
             {loading ? 'กำลังโหลดจาก Google Sheets…' : <> พบ <strong style={{ color: 'var(--mint-primary)' }}>{filtered.length}</strong> จากทั้งหมด {results.length} รายการ</>}
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }} className="no-print">
           <button onClick={onRefresh} disabled={loading} style={{ padding: '9px 14px', borderRadius: 11, fontSize: 13, fontWeight: 700, background: 'var(--mint-primary-xl)', border: '1px solid var(--mint-border)', color: 'var(--mint-primary)', cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, opacity: loading ? 0.6 : 1 }}>
             {loading ? <Spinner size={14} color="var(--mint-primary)" /> : '🔄'} รีเฟรช
           </button>
-          {results.length > 0 && (
+          {results.length > 0 && <>
+            <button onClick={() => window.print()} style={{ padding: '9px 14px', borderRadius: 11, fontSize: 13, fontWeight: 700, background: 'white', border: '1.5px solid var(--mint-border)', color: 'var(--mint-text2)', cursor: 'pointer' }}>🖨️ พิมพ์</button>
             <button onClick={onExport} style={{ padding: '9px 16px', borderRadius: 11, fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg, var(--mint-primary), var(--mint-primary-l))', color: 'white', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(14,159,142,0.28)' }}>📥 ดาวน์โหลด CSV</button>
-          )}
+          </>}
         </div>
       </div>
 
       {!loading && results.length > 0 && (
-        <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }} className="no-print">
           <input type="text" placeholder="🔍 ค้นหาชื่อ-นามสกุล..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ padding: '10px 14px', borderRadius: '12px', border: '1.5px solid var(--mint-border)', fontSize: 13, fontWeight: 600, outline: 'none', flex: '1 1 200px', background: 'white' }} />
           <select value={filterType} onChange={e => setFilterType(e.target.value)} style={{ padding: '10px 14px', borderRadius: '12px', border: '1.5px solid var(--mint-border)', fontSize: 13, fontWeight: 600, outline: 'none', background: 'white', flex: '1 1 150px', cursor: 'pointer', color: 'var(--mint-text)' }}>
             <option value="All">📌 ทุกแบบทดสอบ</option>
             {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select value={filterImpaired} onChange={e => setFilterImpaired(e.target.value)} style={{ padding: '10px 14px', borderRadius: '12px', border: '1.5px solid var(--mint-border)', fontSize: 13, fontWeight: 600, outline: 'none', background: 'white', flex: '1 1 130px', cursor: 'pointer', color: 'var(--mint-text)' }}>
+            <option value="all">📊 ทุกผลลัพธ์</option>
+            <option value="impaired">⚠️ พบปัญหา</option>
+            <option value="normal">✅ ปกติ</option>
           </select>
           <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ padding: '10px 14px', borderRadius: '12px', border: '1.5px solid var(--mint-border)', fontSize: 13, fontWeight: 600, outline: 'none', background: 'white', flex: '1 1 150px', cursor: 'pointer', color: 'var(--mint-text)' }}>
             <option value="date-desc">🕒 วันที่: ล่าสุด - เก่าสุด</option>
@@ -390,6 +463,12 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
             <option value="age-asc">👤 อายุ: น้อย - มาก</option>
             <option value="age-desc">👤 อายุ: มาก - น้อย</option>
           </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '1 1 220px' }}>
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="วันที่เริ่มต้น" style={{ padding: '10px 10px', borderRadius: '12px', border: '1.5px solid var(--mint-border)', fontSize: 12, outline: 'none', background: 'white', flex: 1, color: 'var(--mint-text)' }} />
+            <span style={{ fontSize: 12, color: 'var(--mint-muted)', flexShrink: 0 }}>ถึง</span>
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} title="วันที่สิ้นสุด" style={{ padding: '10px 10px', borderRadius: '12px', border: '1.5px solid var(--mint-border)', fontSize: 12, outline: 'none', background: 'white', flex: 1, color: 'var(--mint-text)' }} />
+            {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(''); setDateTo(''); }} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--mint-muted)', flexShrink: 0, lineHeight: 1 }}>×</button>}
+          </div>
         </div>
       )}
 
@@ -411,7 +490,6 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 560 }}>
               <thead>
                 <tr style={{ background: 'var(--mint-surface2)', borderBottom: '2px solid var(--mint-border2)' }}>
-                  {/* 👇 เพิ่มหัวตารางเพศ */}
                   {['#','ชื่อ-นามสกุล','อายุ','เพศ','แบบทดสอบ','คะแนน/ผล','การแปลผล','วันที่/เวลา','ระยะเวลา'].map(h => (
                     <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 700, color: 'var(--mint-text2)', fontSize: 11, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
@@ -421,11 +499,21 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
                 {filtered.map((r, i) => {
                   const noScoreMax = r.type === 'Bone and Joint' || r.type.includes('Depression') || r.type.includes('Suicide') || r.type.includes('MSRA');
                   return (
-                  <tr key={r.originalIndex} style={{ borderBottom: '1px solid var(--mint-border2)', transition: 'background 0.15s' }} onMouseOver={e => e.currentTarget.style.background = 'var(--mint-surface2)'} onMouseOut={e  => e.currentTarget.style.background = 'transparent'}>
+                  <tr key={r.originalIndex}
+                    style={{ borderBottom: '1px solid var(--mint-border2)', transition: 'background 0.15s', cursor: 'pointer' }}
+                    onClick={() => setDetailResult(r)}
+                    onMouseOver={e => e.currentTarget.style.background = 'var(--mint-surface2)'}
+                    onMouseOut={e  => e.currentTarget.style.background = 'transparent'}>
                     <td style={{ padding: '11px 14px', color: 'var(--mint-muted)', fontWeight: 600 }}>{i+1}</td>
-                    <td style={{ padding: '11px 14px', fontWeight: 700, color: 'var(--mint-text)' }}>{r.name}</td>
+                    <td style={{ padding: '11px 14px' }}>
+                      <span
+                        style={{ fontWeight: 700, color: 'var(--mint-primary)', textDecoration: 'underline', cursor: 'pointer' }}
+                        onClick={e => { e.stopPropagation(); setSearchTerm(r.name); }}
+                        title="คลิกเพื่อกรองผลของผู้ป่วยคนนี้"
+                      >{r.name}</span>
+                      {r.hn && <span style={{ fontSize: 11, color: 'var(--mint-muted)', display: 'block' }}>HN: {r.hn}</span>}
+                    </td>
                     <td style={{ padding: '11px 14px', color: 'var(--mint-text2)' }}>{r.age} ปี</td>
-                    {/* 👇 แสดงเพศในตาราง */}
                     <td style={{ padding: '11px 14px', color: 'var(--mint-text2)' }}>{r.gender}</td>
                     <td style={{ padding: '11px 14px' }}><span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: TYPE_BG[r.type] || 'var(--mint-surface2)', color: TYPE_COLORS[r.type] || 'var(--mint-muted)', whiteSpace: 'nowrap' }}>{r.type}</span></td>
                     <td style={{ padding: '11px 14px', fontWeight: 800, fontSize: 15, color: r.impaired ? 'var(--mint-warn)' : (TYPE_COLORS[r.type] || 'var(--mint-primary)') }}>
@@ -447,6 +535,7 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
               </tbody>
             </table>
           </div>
+          <p style={{ fontSize: 11, color: 'var(--mint-muted)', padding: '10px 16px', textAlign: 'right' }} className="no-print">คลิกแถวเพื่อดูรายละเอียด · คลิกชื่อเพื่อกรองผู้ป่วย</p>
         </div>
       )}
     </div>
@@ -459,6 +548,7 @@ export default function App() {
   const [quiz,          setQuiz]          = useState(null);
   const [showForm,      setShowForm]      = useState(null);
   const [patient,       setPatient]       = useState(null);
+  const [batteryPatient,setBatteryPatient] = useState(null);
   const [pendingResult, setPendingResult] = useState(null);
   const [allResults,    setAllResults]    = useState([]);
   const [saving,        setSaving]        = useState(false);
@@ -489,9 +579,8 @@ export default function App() {
     const now = new Date();
     const datetime = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' }) + ' ' + now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
     
-    // 👇 ส่งข้อมูลเพศเข้าไปใน Google Sheets
-    const newRecord = { name: patient?.name ?? 'ไม่ระบุ', age: patient?.age ?? '-', gender: patient?.gender ?? '-', type: scoreData.type, totalScore: scoreData.totalScore, maxScore: scoreData.maxScore, impaired: scoreData.impaired, breakdown: scoreData.breakdown, duration: scoreData.duration ?? 0, datetime, resultText: scoreData.resultText };
-    
+    const newRecord = { hn: patient?.hn ?? '', name: patient?.name ?? 'ไม่ระบุ', age: patient?.age ?? '-', gender: patient?.gender ?? '-', type: scoreData.type, totalScore: scoreData.totalScore, maxScore: scoreData.maxScore, impaired: scoreData.impaired, breakdown: scoreData.breakdown ?? {}, duration: scoreData.duration ?? 0, datetime, resultText: scoreData.resultText, timestamp: now.getTime() };
+    saveLocalResult(newRecord);
     setPendingResult({ ...scoreData, datetime });
     setQuiz(null);
     setSaving(true);
@@ -503,9 +592,10 @@ export default function App() {
     finally { setSaving(false); }
   };
 
-  const handleBack = () => { setQuiz(null); setPatient(null); setTab('home'); };
-  const handleSummaryClose   = () => { setPendingResult(null); setPatient(null); setTab('home'); };
-  const handleSummaryViewAll = () => { setPendingResult(null); setPatient(null); handleTabChange('results'); };
+  const handleBack = () => { setQuiz(null); setPatient(null); setBatteryPatient(null); setTab('home'); };
+  const handleSummaryClose   = () => { setPendingResult(null); setPatient(null); setBatteryPatient(null); setTab('home'); };
+  const handleSummaryViewAll = () => { setPendingResult(null); setPatient(null); setBatteryPatient(null); handleTabChange('results'); };
+  const handleSummaryContinue = () => { setBatteryPatient(patient); setPendingResult(null); setTab('home'); };
 
   if (quiz === 'minicog') return <MiniCogQuiz patient={patient} onBack={handleBack} onComplete={handleComplete} />;
   if (quiz === 'tmse')    return <TMSEQuiz    patient={patient} onBack={handleBack} onComplete={handleComplete} />;
@@ -562,7 +652,7 @@ export default function App() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       {showForm && <PatientForm quizType={showForm} onConfirm={handleFormConfirm} onCancel={() => setShowForm(null)} />}
-      {pendingResult && <ResultSummaryModal result={pendingResult} patient={patient} onClose={handleSummaryClose} onViewAll={handleSummaryViewAll} />}
+      {pendingResult && <ResultSummaryModal result={pendingResult} patient={patient} onClose={handleSummaryClose} onViewAll={handleSummaryViewAll} onContinue={handleSummaryContinue} />}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       {saving && (
         <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 500, background: 'white', borderRadius: 14, padding: '10px 20px', boxShadow: '0 8px 30px rgba(0,0,0,0.15)', border: '1px solid var(--mint-border)', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -589,6 +679,15 @@ export default function App() {
       <main style={{ flex: 1, maxWidth: 1160, margin: '0 auto', width: '100%', padding: '32px 16px' }}>
         {tab === 'home' && (
           <div className="fade-up">
+            {batteryPatient && (
+              <div style={{ background: '#ecfdf5', border: '1.5px solid #6ee7d5', borderRadius: 16, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: '#065f46' }}>🔄 โหมดทดสอบต่อเนื่อง</p>
+                  <p style={{ fontSize: 12, color: '#047857', marginTop: 2 }}>{batteryPatient.name} · {batteryPatient.gender} · อายุ {batteryPatient.age} ปี{batteryPatient.hn ? ` · HN: ${batteryPatient.hn}` : ''}</p>
+                </div>
+                <button onClick={() => setBatteryPatient(null)} style={{ background: 'none', border: '1.5px solid #6ee7d5', borderRadius: 10, padding: '6px 12px', fontSize: 12, fontWeight: 700, color: '#065f46', cursor: 'pointer', flexShrink: 0 }}>เปลี่ยนผู้ป่วย ×</button>
+              </div>
+            )}
             {!selectedCategory ? (
               <>
                 <div style={{ marginBottom: 32, textAlign: 'center' }}>
@@ -620,7 +719,10 @@ export default function App() {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%,300px),1fr))', gap: 16 }}>
                   {selectedCategory.tests.map(t => (
-                    <TestCard key={t.key} {...t} onClick={() => setShowForm(t.key)} />
+                    <TestCard key={t.key} {...t} onClick={() => {
+                      if (batteryPatient) { setPatient(batteryPatient); setQuiz(t.key); }
+                      else setShowForm(t.key);
+                    }} />
                   ))}
                 </div>
               </>

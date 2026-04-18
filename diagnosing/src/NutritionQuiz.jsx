@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { loadDraft, saveDraft, clearDraft } from './shared/quizStorage';
 
 const Cross = ({ s = 14, c = 'var(--mint-primary)' }) => (
   <svg width={s} height={s} viewBox="0 0 20 20" fill={c}>
@@ -139,13 +140,19 @@ export default function NutritionQuiz({ tool, onBack, onComplete, patient }) {
     }
   };
 
+  const handleBack = () => {
+    if (window.confirm('ออกจากการทดสอบ?\nคำตอบที่ตอบไปแล้วจะถูกบันทึกไว้ชั่วคราว')) {
+      onBack();
+    }
+  };
+
   // Render MSRA-5
   if (tool === 'MSRA5') {
     const opts = [{v:0, l:'ใช่ (มีความเสี่ยง)', warn:true}, {v:1, l:'ไม่ใช่ (ปกติ)'}];
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         <div style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(255,251,235,0.9)', backdropFilter: 'blur(18px)', borderBottom: `1px solid ${NUTRI_BORDER}`, padding: '0 16px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--mint-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>← กลับ</button>
+          <button onClick={handleBack} style={{ background: 'none', border: 'none', color: 'var(--mint-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>← กลับ</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Cross s={14} c={NUTRI_COLOR} /><span style={{ fontSize: 14, fontWeight: 700, color: 'var(--mint-text)' }}>ภาวะมวลกล้ามเนื้อน้อย (MSRA-5)</span></div>
           <div style={{ width: 40 }} />
         </div>
@@ -169,7 +176,7 @@ export default function NutritionQuiz({ tool, onBack, onComplete, patient }) {
       return (
         <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
           <div style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(255,251,235,0.9)', backdropFilter: 'blur(18px)', borderBottom: `1px solid ${NUTRI_BORDER}`, padding: '0 16px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--mint-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>← กลับ</button>
+            <button onClick={handleBack} style={{ background: 'none', border: 'none', color: 'var(--mint-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>← กลับ</button>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Cross s={14} c={NUTRI_COLOR} /><span style={{ fontSize: 14, fontWeight: 700, color: 'var(--mint-text)' }}>คัดกรองโภชนาการ (MNA-SF)</span></div>
             <div style={{ width: 40 }} />
           </div>

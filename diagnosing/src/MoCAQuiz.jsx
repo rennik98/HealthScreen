@@ -2,44 +2,8 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import lionImg from './assets/lion.png';
 import rhinoImg from './assets/rhino.png';
 import camelImg from './assets/camel.png';
-
-/* ── useTimer hook ── */
-function useTimer(autoStart = false) {
-  const [elapsed, setElapsed] = useState(0);
-  const elapsedRef  = useRef(0);
-  const intervalRef = useRef(null);
-  const startedAt   = useRef(null);
-  const stoppedRef  = useRef(false);
-
-  const start = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    stoppedRef.current = false;
-    startedAt.current = Date.now() - elapsedRef.current * 1000;
-    intervalRef.current = setInterval(() => {
-      if (stoppedRef.current) return;
-      const s = Math.floor((Date.now() - startedAt.current) / 1000);
-      elapsedRef.current = s;
-      setElapsed(s);
-    }, 500);
-  }, []);
-
-  const stop = useCallback(() => {
-    stoppedRef.current = true;
-    clearInterval(intervalRef.current);
-    intervalRef.current = null;
-  }, []);
-
-  const snapshot = useCallback(() => elapsedRef.current, []);
-
-  useEffect(() => {
-    if (autoStart) start();
-    return () => { clearInterval(intervalRef.current); intervalRef.current = null; };
-  }, [autoStart, start]);
-
-  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
-
-  return { elapsed, fmt: fmt(elapsed), start, stop, snapshot };
-}
+import { useTimer } from './shared/useTimer';
+import { loadDraft, saveDraft, clearDraft } from './shared/quizStorage';
 
 /* ── MoCA Memory Word Sets (5 words each) ── */
 const WORD_SETS = [
@@ -693,52 +657,66 @@ export default function MoCAQuiz({ onBack, onComplete, patient }) {
   const MOCA_COLOR = '#8b5cf6';
   const MOCA_BG    = '#f3e8ff';
   const MOCA_LIGHT = '#ede9fe';
+  const DRAFT_KEY  = 'moca';
+  const draft = loadDraft(DRAFT_KEY, patient?.name);
 
   const timer = useTimer(true);
 
   /* ── State for each section ── */
-  // 1. Visuospatial/Executive (/5)
-  const [trailScore, setTrailScore]     = useState(null); // 0 or 1
-  const [cubeScore, setCubeScore]       = useState(null);  // 0 or 1
-  const [clockContour, setClockContour] = useState(null);  // 0 or 1
-  const [clockNumbers, setClockNumbers] = useState(null);  // 0 or 1
-  const [clockHands, setClockHands]     = useState(null);    // 0 or 1
-  const [fullscreen, setFullscreen]     = useState(null);    // 'trail' | 'cube' | 'clock' | null
+  const [trailScore, setTrailScore]     = useState(draft?.trailScore   ?? null);
+  const [cubeScore, setCubeScore]       = useState(draft?.cubeScore    ?? null);
+  const [clockContour, setClockContour] = useState(draft?.clockContour ?? null);
+  const [clockNumbers, setClockNumbers] = useState(draft?.clockNumbers ?? null);
+  const [clockHands, setClockHands]     = useState(draft?.clockHands   ?? null);
+  const [fullscreen, setFullscreen]     = useState(null);
 
-  // 2. Naming (/3)
-  const [naming, setNaming] = useState([null, null, null]); // lion, rhino, camel
+  const [naming, setNaming] = useState(draft?.naming ?? [null, null, null]);
 
-  // 3. Attention (/6)
-  const [digitForward, setDigitForward]   = useState(null); // 0 or 1 (2 1 8 5 4)
-  const [digitBackward, setDigitBackward] = useState(null); // 0 or 1 (7 4 2)
-  const [tapScore, setTapScore]           = useState(null); // 0 or 1 (tap on 'ก')
-  const [serialScore, setSerialScore]     = useState(null); // 0–3 (serial 7 subtraction)
+  const [digitForward, setDigitForward]   = useState(draft?.digitForward   ?? null);
+  const [digitBackward, setDigitBackward] = useState(draft?.digitBackward  ?? null);
+  const [tapScore, setTapScore]           = useState(draft?.tapScore        ?? null);
+  const [serialScore, setSerialScore]     = useState(draft?.serialScore     ?? null);
 
-  // 4. Language (/3)
-  const [repeat1, setRepeat1]   = useState(null); // 0 or 1
-  const [repeat2, setRepeat2]   = useState(null); // 0 or 1
-  const [fluency, setFluency]   = useState(null); // 0 or 1 (≥11 words starting with น)
+  const [repeat1, setRepeat1] = useState(draft?.repeat1 ?? null);
+  const [repeat2, setRepeat2] = useState(draft?.repeat2 ?? null);
+  const [fluency, setFluency] = useState(draft?.fluency ?? null);
 
-  // 5. Abstraction (/2)
-  const [abstract1, setAbstract1] = useState(null); // 0 or 1 (train-bicycle)
-  const [abstract2, setAbstract2] = useState(null); // 0 or 1 (watch-ruler)
+  const [abstract1, setAbstract1] = useState(draft?.abstract1 ?? null);
+  const [abstract2, setAbstract2] = useState(draft?.abstract2 ?? null);
 
-  // 6. Delayed Recall (/5)
-  const [recall, setRecall] = useState([null, null, null, null, null]); // 5 words
+  const [recall, setRecall] = useState(draft?.recall ?? [null, null, null, null, null]);
 
-  // 7. Orientation (/6)
-  const [oriDate, setOriDate]     = useState(null);
-  const [oriMonth, setOriMonth]   = useState(null);
-  const [oriYear, setOriYear]     = useState(null);
-  const [oriDay, setOriDay]       = useState(null);
-  const [oriPlace, setOriPlace]   = useState(null);
-  const [oriCity, setOriCity]     = useState(null);
+  const [oriDate, setOriDate]   = useState(draft?.oriDate   ?? null);
+  const [oriMonth, setOriMonth] = useState(draft?.oriMonth  ?? null);
+  const [oriYear, setOriYear]   = useState(draft?.oriYear   ?? null);
+  const [oriDay, setOriDay]     = useState(draft?.oriDay    ?? null);
+  const [oriPlace, setOriPlace] = useState(draft?.oriPlace  ?? null);
+  const [oriCity, setOriCity]   = useState(draft?.oriCity   ?? null);
 
-  // Education bonus
-  const [eduBonus, setEduBonus] = useState(false);
+  const [eduBonus, setEduBonus] = useState(draft?.eduBonus ?? false);
 
-  const [done, setDone]             = useState(false);
+  const [done, setDone]                   = useState(false);
   const [finalDuration, setFinalDuration] = useState(0);
+
+  useEffect(() => {
+    if (done) return;
+    saveDraft(DRAFT_KEY, patient?.name, {
+      trailScore, cubeScore, clockContour, clockNumbers, clockHands,
+      naming, digitForward, digitBackward, tapScore, serialScore,
+      repeat1, repeat2, fluency, abstract1, abstract2,
+      recall, oriDate, oriMonth, oriYear, oriDay, oriPlace, oriCity, eduBonus,
+    });
+  }, [trailScore, cubeScore, clockContour, clockNumbers, clockHands,
+      naming, digitForward, digitBackward, tapScore, serialScore,
+      repeat1, repeat2, fluency, abstract1, abstract2,
+      recall, oriDate, oriMonth, oriYear, oriDay, oriPlace, oriCity, eduBonus,
+      done, patient?.name]);
+
+  const handleBack = () => {
+    if (window.confirm('ออกจากการทดสอบ?\nคำตอบที่ตอบไปแล้วจะถูกบันทึกไว้ชั่วคราว')) {
+      onBack();
+    }
+  };
 
   /* ── Score computation ── */
   const visuoScore = (trailScore??0) + (cubeScore??0) + (clockContour??0) + (clockNumbers??0) + (clockHands??0);
@@ -774,6 +752,7 @@ export default function MoCAQuiz({ onBack, onComplete, patient }) {
     timer.stop();
     setFinalDuration(duration);
     setDone(true);
+    clearDraft(DRAFT_KEY, patient?.name);
     if (onComplete) {
       onComplete({
         type: 'MoCA',
@@ -937,7 +916,7 @@ export default function MoCAQuiz({ onBack, onComplete, patient }) {
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column' }}>
       {/* topbar */}
       <div style={{ position:'sticky',top:0,zIndex:50,background:'rgba(240,250,248,0.9)',backdropFilter:'blur(18px)',borderBottom:'1px solid var(--mint-border)',padding:'0 16px',height:56,display:'flex',alignItems:'center',justifyContent:'space-between' }}>
-        <button onClick={onBack} style={{ background:'none',border:'none',color:'var(--mint-muted)',cursor:'pointer',fontSize:13,fontWeight:600,padding:'8px 0' }}>← กลับ</button>
+        <button onClick={handleBack} style={{ background:'none',border:'none',color:'var(--mint-muted)',cursor:'pointer',fontSize:13,fontWeight:600,padding:'8px 0' }}>← กลับ</button>
         <div style={{ display:'flex',alignItems:'center',gap:6 }}>
           <Cross s={14} c={MOCA_COLOR}/>
           <span style={{ fontSize:14,fontWeight:700,color:'var(--mint-text)' }}>MoCA</span>
@@ -1335,7 +1314,7 @@ export default function MoCAQuiz({ onBack, onComplete, patient }) {
           </p>
           <ActionBtn onClick={handleFinish} variant="primary">ดูผลการประเมิน →</ActionBtn>
           <div style={{ height:8 }}/>
-          <ActionBtn onClick={onBack} variant="outline">← กลับหน้าหลัก</ActionBtn>
+          <ActionBtn onClick={handleBack} variant="outline">← กลับหน้าหลัก</ActionBtn>
         </div>
 
         <p style={{ textAlign:'center',fontSize:11,color:'var(--mint-muted)',paddingBottom:20 }}>
