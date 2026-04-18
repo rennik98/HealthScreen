@@ -354,34 +354,33 @@ async function loadFromSheets() {
   let json;
   try { json = JSON.parse(text); } catch { throw new Error('Invalid response: ' + text.slice(0, 100)); }
   if (!json.success) throw new Error(json.error || 'Unknown error');
+  // doGet now returns objects keyed by column header — no fragile index mapping
   return (json.data || []).map(row => {
-    const name = String(row[1] ?? '');
-    const type = String(row[4] ?? '');
-    // Merge breakdown + hn from local storage (Google Sheets doesn't store these)
+    const name = String(row['ชื่อ-นามสกุล'] ?? '');
+    const type = String(row['ประเภทแบบทดสอบ'] ?? '');
     const localMatch = local.find(l => l.name === name && l.type === type);
+    const impairedText = String(row['การแปลผล'] ?? '');
+    const impaired = ['บกพร่อง','Impairment','พบปัญหา','ควรส่งต่อ','พบความเสี่ยง','ซึมเศร้า','เสี่ยงฆ่าตัวตาย','เสี่ยงหกล้ม','เสี่ยงต่อภาวะมวลกล้ามเนื้อ','ขาดสารอาหาร','ติดเตียง','ติดบ้าน','เปราะบาง','แนวโน้มภาวะสมองเสื่อม'].some(k => impairedText.includes(k));
+    const datetimeRaw = String(row['วันที่/เวลา'] ?? '');
+    const d = new Date(datetimeRaw);
+    const datetime = (!isNaN(d) && datetimeRaw.trim()) ? (() => {
+      const mn = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+      let yr = d.getFullYear(); if (yr < 2500) yr += 543;
+      return `${d.getDate()} ${mn[d.getMonth()]} ${yr} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    })() : datetimeRaw;
     return {
-      hn:         localMatch?.hn ?? '',
+      hn:         String(row['HN/รหัสผู้ป่วย'] ?? localMatch?.hn ?? ''),
       name,
-      age:        row[2],
-      gender:     String(row[3] ?? '-'),
+      age:        row['อายุ'],
+      gender:     String(row['เพศ'] ?? '-'),
       type,
-      totalScore: Number(row[5]),
-      maxScore:   Number(row[6]),
-      impaired:   String(row[7]).includes('บกพร่อง') || String(row[7]).includes('Impairment') || String(row[7]).includes('พบปัญหา') || String(row[7]).includes('ควรส่งต่อ') || String(row[7]).includes('พบความเสี่ยง') || String(row[7]).includes('ซึมเศร้า') || String(row[7]).includes('เสี่ยงฆ่าตัวตาย') || String(row[7]).includes('เสี่ยงหกล้ม') || String(row[7]).includes('เสี่ยงต่อภาวะมวลกล้ามเนื้อ') || String(row[7]).includes('ขาดสารอาหาร') || String(row[7]).includes('ติดเตียง') || String(row[7]).includes('ติดบ้าน') || String(row[7]).includes('เปราะบาง') || String(row[7]).includes('แนวโน้มภาวะสมองเสื่อม'),
-      datetime: (() => {
-        const raw = String(row[8] ?? '');
-        const d = new Date(raw);
-        if (!isNaN(d) && raw.trim() !== '') {
-          const monthNames = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-          let year = d.getFullYear();
-          if (year < 2500) year += 543;
-          return `${d.getDate()} ${monthNames[d.getMonth()]} ${year} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-        }
-        return raw;
-      })(),
-      duration:  Number(row[9]) || 0,
-      breakdown: localMatch?.breakdown ?? {},
-      timestamp: localMatch?.timestamp,
+      totalScore: Number(row['คะแนนรวม']),
+      maxScore:   Number(row['คะแนนสูงสุด']),
+      impaired,
+      datetime,
+      duration:   Number(row['เวลาที่ใช้ (วินาที)']) || 0,
+      breakdown:  localMatch?.breakdown ?? {},
+      timestamp:  localMatch?.timestamp,
     };
   });
 }
