@@ -127,7 +127,9 @@ const PatientForm = ({ quizType, onConfirm, onCancel, prefill }) => {
     moca:    { label: 'MoCA',              color: '#8b5cf6',             grad: 'linear-gradient(135deg, #8b5cf6, #a78bfa)',                              icon: '📋', bg: '#f3e8ff' },
     oral:    { label: 'สุขภาพช่องปาก',    color: '#0891b2',             grad: 'linear-gradient(135deg, #0891b2, #0e7490)',                              icon: '🦷', bg: '#ecfeff' },
     eye:     { label: 'สุขภาวะทางตา',     color: '#7c3aed',             grad: 'linear-gradient(135deg, #7c3aed, #6d28d9)',                              icon: '👁️', bg: '#f5f3ff' },
-    bone:    { label: 'โรคทางกระดูกและข้อ', color: '#ea580c',             grad: 'linear-gradient(135deg, #ea580c, #c2410c)',                              icon: '🦴', bg: '#fff7ed' },
+    osta:    { label: 'OSTA Index (กระดูกพรุน)',  color: '#ea580c', grad: 'linear-gradient(135deg, #ea580c, #c2410c)', icon: '🦴', bg: '#fff7ed' },
+    frax:    { label: 'FRAX Score (กระดูกหัก)',  color: '#ea580c', grad: 'linear-gradient(135deg, #ea580c, #c2410c)', icon: '🦴', bg: '#fff7ed' },
+    knee:    { label: 'การคัดกรองข้อเข่าเสื่อม', color: '#ea580c', grad: 'linear-gradient(135deg, #ea580c, #c2410c)', icon: '🦵', bg: '#fff7ed' },
     depress: { label: 'ภาวะซึมเศร้า (2Q/9Q)',color: '#e11d48',            grad: 'linear-gradient(135deg, #e11d48, #be123c)',                              icon: '❤️‍🩹', bg: '#fff1f2' },
     suicide: { label: 'ความเสี่ยงฆ่าตัวตาย (8Q)',color: '#dc2626',        grad: 'linear-gradient(135deg, #dc2626, #991b1b)',                              icon: '🆘', bg: '#fef2f2' },
     fall:    { label: 'ภาวะหกล้ม (TUGT)',  color: '#059669',             grad: 'linear-gradient(135deg, #059669, #047857)',                              icon: '🚶‍♂️', bg: '#ecfdf5' },
@@ -602,7 +604,9 @@ export default function App() {
   if (quiz === 'moca')    return <MoCAQuiz    patient={patient} onBack={handleBack} onComplete={handleComplete} />;
   if (quiz === 'oral')    return <OralHealthQuiz patient={patient} onBack={handleBack} onComplete={handleComplete} />;
   if (quiz === 'eye')     return <EyeHealthQuiz  patient={patient} onBack={handleBack} onComplete={handleComplete} />;
-  if (quiz === 'bone')    return <BoneJointQuiz  patient={patient} onBack={handleBack} onComplete={handleComplete} />;
+  if (quiz === 'osta')    return <BoneJointQuiz tool="OSTA" patient={patient} onBack={handleBack} onComplete={handleComplete} />;
+  if (quiz === 'frax')    return <BoneJointQuiz tool="FRAX" patient={patient} onBack={handleBack} onComplete={handleComplete} />;
+  if (quiz === 'knee')    return <BoneJointQuiz tool="KNEE" patient={patient} onBack={handleBack} onComplete={handleComplete} />;
   if (quiz === 'depress') return <DepressionQuiz patient={patient} onBack={handleBack} onComplete={handleComplete} />;
   if (quiz === 'suicide') return <SuicideRiskQuiz patient={patient} onBack={handleBack} onComplete={handleComplete} />;
   if (quiz === 'fall')    return <FallRiskQuiz   patient={patient} onBack={handleBack} onComplete={handleComplete} />;
@@ -619,7 +623,7 @@ export default function App() {
   ];
   const nutritionTests = [
     { key: 'mna',  icon: '🥗', title: 'ภาวะโภชนาการ (MNA)', sub: 'คัดกรองด้วย MNA Short Form และ Full Form', badge: 'MNA', bColor: '#d97706', bBg: '#fffbeb' },
-    { key: 'msra', icon: '💪', title: 'มวลกล้ามเนื้อน้อย', sub: 'แบบคัดกรอง Modified MSRA-5', badge: 'MSRA-5', bColor: '#d97706', bBg: '#fffbeb' },
+    { key: 'msra', icon: '💪', title: 'มวลกล้ามเนื้อ', sub: 'แบบคัดกรอง Modified MSRA-5', badge: 'MSRA-5', bColor: '#d97706', bBg: '#fffbeb' },
   ];
   const functionTests = [
     { key: 'adl',   icon: '🛌', title: 'กิจวัตรประจำวัน (ADL)', sub: 'ประเมิน 10 ด้าน กลุ่มติดสังคม/บ้าน/เตียง', badge: 'ADL Index', bColor: '#4f46e5', bBg: '#e0e7ff' },
@@ -628,10 +632,12 @@ export default function App() {
   const healthTests = [
     { key: 'oral', icon: '🦷', title: 'สุขภาพช่องปาก',   sub: 'ประเมินโดยทันตบุคลากร 8 ด้าน', badge: '8 รายการ',  bColor: '#0891b2', bBg: '#ecfeff' },
     { key: 'eye',  icon: '👁️', title: 'สุขภาวะทางตา',    sub: 'ต้อกระจก ต้อหิน จอตาเสื่อม + Snellen Chart', badge: 'ระยะ+ใกล้', bColor: '#7c3aed', bBg: '#f5f3ff' },
-    { key: 'bone', icon: '🦴', title: 'โรคทางกระดูกและข้อ', sub: 'OSTA index, FRAX score, ข้อเข่าเสื่อม', badge: '3 รายการ', bColor: '#ea580c', bBg: '#fff7ed' },
+    { key: 'osta', icon: '🦴', title: 'OSTA Index', sub: 'ประเมินความเสี่ยงโรคกระดูกพรุน', badge: 'OSTA', bColor: '#ea580c', bBg: '#fff7ed' },
+    { key: 'frax', icon: '🦴', title: 'FRAX Score', sub: 'โอกาสกระดูกหักใน 10 ปี', badge: 'FRAX', bColor: '#ea580c', bBg: '#fff7ed' },
+    { key: 'knee', icon: '🦵', title: 'การคัดกรองข้อเข่าเสื่อม', sub: 'คัดกรองโรคข้อเข่าเสื่อมทางคลินิก', badge: 'Knee OA', bColor: '#ea580c', bBg: '#fff7ed' },
   ];
   const syndromeTests = [
-    { key: 'fall', icon: '🚶‍♂️', title: 'ภาวะหกล้ม (TUGT)', sub: 'ทดสอบ Timed Up and Go Test จับเวลา', badge: 'TUGT', bColor: '#059669', bBg: '#ecfdf5' },
+    { key: 'fall', icon: '🚶‍♂️', title: 'แบบคัดกรองความเสี่ยงหกล้ม (TUGT)', sub: 'ทดสอบ Timed Up and Go Test จับเวลา', badge: 'TUGT', bColor: '#059669', bBg: '#ecfdf5' },
   ];
   const mentalTests = [
     { key: 'depress', icon: '❤️‍🩹', title: 'ภาวะซึมเศร้า (2Q/9Q)', sub: 'คัดกรองด้วย 2Q และประเมินต่อด้วย 9Q', badge: '2Q, 9Q', bColor: '#e11d48', bBg: '#fff1f2' },
@@ -641,9 +647,9 @@ export default function App() {
   const CATEGORIES = [
     { id: 'cog', icon: '🧠', title: 'สมรรถภาพสมอง', sub: 'การรับรู้ ความจำ ความคิด', count: cognitiveTests.length, color: 'var(--mint-primary)', bg: 'var(--mint-primary-xl)', tests: cognitiveTests },
     { id: 'nut', icon: '🥗', title: 'โภชนาการและกล้ามเนื้อ', sub: 'ภาวะขาดสารอาหารและมวลกล้ามเนื้อ', count: nutritionTests.length, color: '#d97706', bg: '#fffbeb', tests: nutritionTests },
-    { id: 'fun', icon: '🛌', title: 'สมรรถนะการดูแล', sub: 'ADL กิจวัตรประจำวัน และความเปราะบาง', count: functionTests.length, color: '#4f46e5', bg: '#e0e7ff', tests: functionTests },
+    { id: 'fun', icon: '🛌', title: 'สมรรถนะผู้สูงอายุเพื่อการดูแล', sub: 'ADL กิจวัตรประจำวัน และความเปราะบาง', count: functionTests.length, color: '#4f46e5', bg: '#e0e7ff', tests: functionTests },
     { id: 'gen', icon: '🏥', title: 'สุขภาพทั่วไป', sub: 'ช่องปาก สายตา กระดูกและข้อ', count: healthTests.length, color: '#0891b2', bg: '#ecfeff', tests: healthTests },
-    { id: 'syn', icon: '🚶‍♂️', title: 'กลุ่มอาการในผู้สูงอายุ', sub: 'ความเสี่ยงภาวะหกล้ม (TUGT)', count: syndromeTests.length, color: '#059669', bg: '#ecfdf5', tests: syndromeTests },
+    { id: 'syn', icon: '🚶‍♂️', title: 'กลุ่มอาการในผู้สูงอายุ', sub: 'แบบคัดกรองความเสี่ยงหกล้ม (TUGT)', count: syndromeTests.length, color: '#059669', bg: '#ecfdf5', tests: syndromeTests },
     { id: 'men', icon: '❤️‍🩹', title: 'สุขภาพจิต', sub: 'ภาวะซึมเศร้าและความเสี่ยงฆ่าตัวตาย', count: mentalTests.length, color: '#e11d48', bg: '#fff1f2', tests: mentalTests },
   ];
 
@@ -816,9 +822,9 @@ export default function App() {
               </div>
             </CriteriaBlock>
 
-            <CriteriaBlock title="มวลกล้ามเนื้อน้อย (Modified MSRA-5)" color="#d97706">
+            <CriteriaBlock title="มวลกล้ามเนื้อ (Modified MSRA-5)" color="#d97706">
               <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 14 }}>
-                ประเมินความเสี่ยงมวลกล้ามเนื้อน้อย (Sarcopenia) จำนวน 5 ข้อ (ตอบ "ไม่ใช่" = 1 คะแนน, ตอบ "ใช่" = 0 คะแนน)
+                ประเมินความเสี่ยงมวลกล้ามเนื้อ (Sarcopenia) จำนวน 5 ข้อ (ตอบ "ไม่ใช่" = 1 คะแนน, ตอบ "ใช่" = 0 คะแนน)
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 4 }}>
                 <ScoreRow label="4 - 5 คะแนน" val="มวลกล้ามเนื้อปกติ" color="#d97706" />

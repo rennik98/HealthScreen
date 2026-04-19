@@ -2,22 +2,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTimer } from './shared/useTimer';
 import { loadDraft, saveDraft, clearDraft } from './shared/quizStorage';
 
-/* ── Word sets (7 sets × 3 words each) ── */
-const WORD_SETS = [
-  ['กล้วย', 'ผู้นำ', 'หมู่บ้าน'],
-  ['แม่น้ำ', 'กัปตันเรือ', 'ลูกสาว'],
-  ['บ้าน', 'พระอาทิตย์ขึ้น', 'ฤดูกาล'],
-  ['ห้องครัว', 'ประเทศ', 'สวน'],
-  ['สวรรค์', 'แมว', 'เก้าอี้'],
-  ['โต๊ะ', 'เด็ก', 'นิ้ว'],
-  ['รูปภาพ', 'ภูเขา', 'สีเขียว'],
-];
-
-const WORD_SET_LABELS = [
-  'ชุดคำที่ 1', 'ชุดคำที่ 2', 'ชุดคำที่ 3',
-  'ชุดคำที่ 4', 'ชุดคำที่ 5', 'ชุดคำที่ 6',
-  'ชุดคำที่ 7*',
-];
+/* ── Word set ── */
+const MINICOG_WORDS = ['หลานสาว', 'สวรรค์', 'ภูเขา'];
 
 /* ── shared ui ── */
 const Cross = ({ s = 14, c = 'var(--mint-primary)' }) => (
@@ -77,41 +63,6 @@ const SectionHead = ({ n, title, color = 'var(--mint-primary)' }) => (
     <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--mint-text)' }}>{title}</h2>
   </div>
 );
-
-/* ── Word Set Picker ── */
-function WordSetPicker({ selectedSet, onSelect }) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <p style={{ fontSize: 12, color: 'var(--mint-text2)', fontWeight: 700, marginBottom: 8 }}>
-        เลือกชุดคำศัพท์
-        <span style={{ fontSize: 10, color: 'var(--mint-muted)', fontWeight: 400, marginLeft: 6 }}>
-          (กดสุ่มหรือเลือกเอง)
-        </span>
-      </p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6 }}>
-        {WORD_SET_LABELS.map((label, i) => (
-          <button key={i} onClick={() => onSelect(i)} style={{
-            padding: '8px 4px', borderRadius: 9, fontSize: 11, fontWeight: 700,
-            border: `1.5px solid ${selectedSet === i ? 'var(--mint-primary)' : 'var(--mint-border)'}`,
-            background: selectedSet === i ? 'var(--mint-primary-xl)' : 'var(--mint-surface2)',
-            color: selectedSet === i ? 'var(--mint-primary)' : 'var(--mint-muted)',
-            cursor: 'pointer', transition: 'all 0.15s',
-          }}>
-            {label}
-          </button>
-        ))}
-        <button onClick={() => onSelect(Math.floor(Math.random() * WORD_SETS.length))} style={{
-          padding: '8px 4px', borderRadius: 9, fontSize: 11, fontWeight: 700,
-          border: 'none',
-          background: 'linear-gradient(135deg,var(--mint-primary),var(--mint-primary-l))',
-          color: 'white', cursor: 'pointer', transition: 'all 0.15s',
-        }}>
-          🎲 สุ่ม
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /* ── Freehand Clock Canvas ── */
 function ClockCanvas({ onConfirm }) {
@@ -390,16 +341,15 @@ export default function MiniCogQuiz({ onBack, onComplete, patient }) {
   const DRAFT_KEY = 'minicog';
   const draft = loadDraft(DRAFT_KEY, patient?.name);
 
-  const [wordSetIdx, setWordSetIdx] = useState(draft?.wordSetIdx ?? Math.floor(Math.random() * WORD_SETS.length));
-  const [step,       setStep]       = useState(draft?.step ?? 1);
-  const [clockScore, setCS]         = useState(draft?.clockScore ?? null);
-  const [result,     setResult]     = useState(null);
+  const [step,       setStep]   = useState(draft?.step ?? 1);
+  const [clockScore, setCS]     = useState(draft?.clockScore ?? null);
+  const [result,     setResult] = useState(null);
   const timer = useTimer();
 
   useEffect(() => {
     if (result) return;
-    saveDraft(DRAFT_KEY, patient?.name, { wordSetIdx, step, clockScore });
-  }, [wordSetIdx, step, clockScore, result, patient?.name]);
+    saveDraft(DRAFT_KEY, patient?.name, { step, clockScore });
+  }, [step, clockScore, result, patient?.name]);
 
   const handleBack = () => {
     if (window.confirm('ออกจากการทดสอบ?\nคำตอบที่ตอบไปแล้วจะถูกบันทึกไว้ชั่วคราว')) {
@@ -407,15 +357,8 @@ export default function MiniCogQuiz({ onBack, onComplete, patient }) {
     }
   };
 
-  const currentWords = WORD_SETS[wordSetIdx];
-
   // Start timer when moving from step 1 → 2 (test begins)
   const handleStart = () => { timer.start(); setStep(2); };
-
-  const handleWordSetChange = (idx) => {
-    setWordSetIdx(idx);
-    if (step > 1) { setStep(1); setCS(null); timer.stop(); }
-  };
 
   const handleClockScore = (sc) => { setCS(sc); setStep(3); };
 
@@ -436,10 +379,9 @@ export default function MiniCogQuiz({ onBack, onComplete, patient }) {
         impaired: total <= 3, 
         duration, 
         breakdown: { 
-          "วาดนาฬิกา (0 หรือ 2)": cs, 
+          "วาดนาฬิกา (0 หรือ 2)": cs,
           "จำคำศัพท์ (0-3)": rc,
-          "ชุดคำศัพท์ที่ใช้": WORD_SET_LABELS[wordSetIdx]
-          // ลบส่วนที่ส่งคำศัพท์รายคำออกแล้ว เพื่อไม่ให้คอลัมน์ใน Sheet งอกเพิ่ม
+          "ชุดคำศัพท์ที่ใช้": MINICOG_WORDS.join(', ')
         } 
       });
     }
@@ -484,13 +426,12 @@ export default function MiniCogQuiz({ onBack, onComplete, patient }) {
         {step === 1 && (
           <Card>
             <SectionHead n="1" title="การลงทะเบียนคำศัพท์" />
-            <WordSetPicker selectedSet={wordSetIdx} onSelect={handleWordSetChange} />
             <div style={{ background: 'var(--mint-primary-xl)', border: '1px solid var(--mint-border)', borderRadius: 16, padding: 18, marginBottom: 22 }}>
               <p style={{ fontSize: 13, color: 'var(--mint-text2)', fontStyle: 'italic', textAlign: 'center', lineHeight: 1.75, marginBottom: 14 }}>
                 "ให้ตั้งใจฟังดีๆ เดี๋ยวจะบอกคำ 3 คำ เมื่อพูดจบแล้วให้พูดตามและจำไว้ เดี๋ยวจะกลับมาถามซ้ำ"
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
-                {currentWords.map(w => (
+                {MINICOG_WORDS.map(w => (
                   <div key={w} style={{ background: 'white', border: '1.5px solid var(--mint-border)', borderRadius: 12, padding: '12px 6px', textAlign: 'center', fontWeight: 800, fontSize: 14, color: 'var(--mint-primary)', boxShadow: 'var(--shadow-sm)' }}>
                     {w}
                   </div>
@@ -515,7 +456,7 @@ export default function MiniCogQuiz({ onBack, onComplete, patient }) {
         {step === 3 && (
           <Card>
             <SectionHead n="3" title="การทดสอบความจำ" />
-            <WordRecall words={currentWords} onConfirm={handleRecallScore} />
+            <WordRecall words={MINICOG_WORDS} onConfirm={handleRecallScore} />
           </Card>
         )}
 
@@ -535,9 +476,8 @@ export default function MiniCogQuiz({ onBack, onComplete, patient }) {
 
             {/* Word set used + duration */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: 'var(--mint-surface2)', border: '1px solid var(--mint-border2)', borderRadius: 10, marginBottom: 18, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 11, color: 'var(--mint-muted)' }}>ชุดคำที่ใช้:</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--mint-primary)' }}>{WORD_SET_LABELS[wordSetIdx]}</span>
-              {currentWords.map(w => (
+              <span style={{ fontSize: 11, color: 'var(--mint-muted)' }}>คำที่ใช้:</span>
+              {MINICOG_WORDS.map(w => (
                 <span key={w} style={{ fontSize: 10, background: 'var(--mint-primary-xl)', color: 'var(--mint-primary)', padding: '1px 6px', borderRadius: 6, fontWeight: 700 }}>{w}</span>
               ))}
               <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--mint-text2)', background: 'white', border: '1px solid var(--mint-border)', borderRadius: 8, padding: '2px 8px', flexShrink: 0 }}>

@@ -77,7 +77,9 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
 
   const [edu, setEdu] = useState(draft?.edu ?? null);
   const [oriTimeS, setOriTimeS] = useState(draft?.oriTimeS ?? Array(5).fill(null));
+  const [placeMode, setPlaceMode] = useState(draft?.placeMode ?? null);
   const [oriPlaceS, setOriPlaceS] = useState(draft?.oriPlaceS ?? Array(5).fill(null));
+  const [wordSet, setWordSet] = useState(draft?.wordSet ?? 'first');
   const [regS, setRegS] = useState(draft?.regS ?? null);
   const [attMode, setAttMode] = useState(draft?.attMode ?? 'calc');
   const [attS, setAttS] = useState(draft?.attS ?? null);
@@ -92,8 +94,8 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
   // Auto-save draft on every answer change
   useEffect(() => {
     if (done) return;
-    saveDraft(DRAFT_KEY, patient?.name, { edu, oriTimeS, oriPlaceS, regS, attMode, attS, recS, langS, visuoS });
-  }, [edu, oriTimeS, oriPlaceS, regS, attMode, attS, recS, langS, visuoS, done, patient?.name]);
+    saveDraft(DRAFT_KEY, patient?.name, { edu, oriTimeS, placeMode, oriPlaceS, wordSet, regS, attMode, attS, recS, langS, visuoS });
+  }, [edu, oriTimeS, placeMode, oriPlaceS, wordSet, regS, attMode, attS, recS, langS, visuoS, done, patient?.name]);
 
   const handleBack = () => {
     if (window.confirm('ออกจากการทดสอบ?\nคำตอบที่ตอบไปแล้วจะถูกบันทึกไว้ชั่วคราว')) {
@@ -108,7 +110,7 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
   const attTotal      = attS ?? 0;
   const recTotal      = recS.filter(v=>v===1).length;
   const langTotal     = (langS.naming1??0) + (langS.naming2??0) + (langS.repeat??0) + langS.commands.reduce((a,v)=>a+(v??0),0) + (edu==='none'?0:(langS.read??0)) + (edu==='none'?0:(langS.write??0));
-  const visuoTotal    = edu==='none'?0:(visuoS??0);
+  const visuoTotal    = visuoS??0;
   
   const total = oriTimeTotal + oriPlaceTotal + regTotal + attTotal + recTotal + langTotal + visuoTotal;
   
@@ -123,13 +125,15 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
 
   const handleFinish = () => {
     if (!edu) { alert('⚠️ กรุณาเลือกระดับการศึกษาก่อน เนื่องจากมีผลต่อเกณฑ์การแปลผลครับ'); return; }
+    if (!placeMode) { alert('⚠️ กรุณาเลือกสถานที่ทดสอบ (โรงพยาบาล หรือ บ้าน) ในข้อ 2 ก่อนครับ'); return; }
 
     const allAns = [
       ...oriTimeS, ...oriPlaceS, regS, ...recS,
       langS.naming1, langS.naming2, langS.repeat, ...langS.commands,
     ];
+    allAns.push(visuoS);
     if (edu !== 'none') {
-      allAns.push(attS, langS.read, langS.write, visuoS);
+      allAns.push(attS, langS.read, langS.write);
     }
 
     if (allAns.includes(null)) {
@@ -154,6 +158,8 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
         resultText: resText,
         breakdown: {
           "ระดับการศึกษา": edu === 'none' ? 'ไม่ได้เรียน/อ่านไม่ออก' : edu === 'primary' ? 'ประถมศึกษา (ป.1-ป.6)' : 'สูงกว่าประถมศึกษา',
+          "สถานที่ทดสอบ": placeMode === 'hospital' ? 'โรงพยาบาล' : 'บ้าน',
+          "ชุดคำ Q3/Q5": wordSet === 'retake' ? 'ทดสอบซ้ำ (ต้นไม้ ทะเล รถยนต์)' : 'ครั้งแรก (ดอกไม้ แม่น้ำ รถไฟ)',
           "1. Orientation for Time (5)": oriTimeTotal,
           "2. Orientation for Place (5)": oriPlaceTotal,
           "3. Registration (3)": regTotal,
@@ -225,7 +231,7 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
       {l:'Attention',         s:attTotal,      m:edu==='none'?0:5},
       {l:'Recall',            s:recTotal,      m:3},
       {l:'Language',          s:langTotal,     m:edu==='none'?5:8},
-      {l:'Visuospatial',      s:visuoTotal,    m:edu==='none'?0:1},
+      {l:'Visuospatial',      s:visuoTotal,    m:1},
     ];
     return (
       <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column' }}>
@@ -257,11 +263,11 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
             <div style={{ position:'relative',width:130,height:130,margin:'0 auto 12px' }}>
               <svg width="130" height="130" style={{ position:'absolute',inset:0 }}>
                 <circle cx="65" cy="65" r="56" fill="none" stroke="var(--mint-border2)" strokeWidth="8"/>
-                <circle cx="65" cy="65" r="56" fill="none" stroke={impaired?'var(--mint-warn)':MMSE_COLOR} strokeWidth="8" strokeDasharray={`${(total/(edu==='none'?22:30))*351.9} 351.9`} strokeLinecap="round" transform="rotate(-90 65 65)" style={{ transition:'stroke-dasharray 0.9s ease' }}/>
+                <circle cx="65" cy="65" r="56" fill="none" stroke={impaired?'var(--mint-warn)':MMSE_COLOR} strokeWidth="8" strokeDasharray={`${(total/(edu==='none'?23:30))*351.9} 351.9`} strokeLinecap="round" transform="rotate(-90 65 65)" style={{ transition:'stroke-dasharray 0.9s ease' }}/>
               </svg>
               <div style={{ position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center' }}>
                 <span style={{ fontSize:34,fontWeight:800,color:impaired?'var(--mint-warn)':MMSE_COLOR }}>{total}</span>
-                <span style={{ fontSize:12,color:'var(--mint-muted)' }}>/ {edu==='none'?22:30}</span>
+                <span style={{ fontSize:12,color:'var(--mint-muted)' }}>/ {edu==='none'?23:30}</span>
               </div>
             </div>
             <p style={{ fontSize:11,color:'var(--mint-muted)',letterSpacing:'0.08em',textTransform:'uppercase' }}>คะแนนรวม MMSE</p>
@@ -292,7 +298,7 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
   }
 
   /* ── Quiz Form ── */
-  const MMSE_WORDS = ['ดอกไม้', 'แม่น้ำ', 'รถไฟ'];
+  const MMSE_WORDS = wordSet === 'retake' ? ['ต้นไม้', 'ทะเล', 'รถยนต์'] : ['ดอกไม้', 'แม่น้ำ', 'รถไฟ'];
   const attenQuestions = attMode === 'calc' 
     ? ["ครั้งที่ 1 (93)", "ครั้งที่ 2 (86)", "ครั้งที่ 3 (79)", "ครั้งที่ 4 (72)", "ครั้งที่ 5 (65)"]
     : ["ครั้งที่ 1 (ว)", "ครั้งที่ 2 (า)", "ครั้งที่ 3 (น)", "ครั้งที่ 4 (ะ)", "ครั้งที่ 5 (ม)"];
@@ -306,7 +312,7 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
           <span style={{ fontSize:14,fontWeight:700,color:'var(--mint-text)' }}>MMSE-Thai</span>
         </div>
         <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-          <div style={{ fontSize:12,fontWeight:700,color:MMSE_COLOR,background:MMSE_BG,border:`1px solid ${MMSE_BORDER}`,borderRadius:20,padding:'3px 10px' }}>{total}/{edu==='none'?22:30}</div>
+          <div style={{ fontSize:12,fontWeight:700,color:MMSE_COLOR,background:MMSE_BG,border:`1px solid ${MMSE_BORDER}`,borderRadius:20,padding:'3px 10px' }}>{total}/{edu==='none'?23:30}</div>
           <div style={{ fontSize:12,fontWeight:700,color:'var(--mint-text2)',background:'white',border:'1px solid var(--mint-border)',borderRadius:20,padding:'3px 10px',fontVariantNumeric:'tabular-nums',display:'flex',alignItems:'center',gap:4 }}>
             <span>⏱</span><span>{timer.fmt}</span>
           </div>
@@ -339,12 +345,31 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
         </Section>
 
         <Section num="2" title="Orientation for Place" max={5} score={oriPlaceTotal}>
-          {["สถานที่ตรงนี้เรียกว่าอะไร (ชื่อ รพ./บ้าน)", "อยู่ที่ชั้นอะไร / ห้องอะไร", "อำเภอ / เขต อะไร", "จังหวัดอะไร", "ภาคอะไร"].map((q,i) => (
+          <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:12, padding:'12px 14px', marginBottom:16 }}>
+            <p style={{ fontSize:13, fontWeight:700, color:'#1d4ed8', marginBottom:8 }}>เลือกสถานที่ทดสอบ</p>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => { setPlaceMode('hospital'); setOriPlaceS(Array(5).fill(null)); }} style={{ flex:1, padding:'8px', borderRadius:8, fontSize:12, fontWeight:700, border:`1.5px solid ${placeMode === 'hospital' ? '#1d4ed8' : '#bfdbfe'}`, background: placeMode === 'hospital' ? '#dbeafe' : 'white', color: placeMode === 'hospital' ? '#1e40af' : '#60a5fa', cursor:'pointer' }}>🏥 โรงพยาบาล</button>
+              <button onClick={() => { setPlaceMode('home'); setOriPlaceS(Array(5).fill(null)); }} style={{ flex:1, padding:'8px', borderRadius:8, fontSize:12, fontWeight:700, border:`1.5px solid ${placeMode === 'home' ? '#1d4ed8' : '#bfdbfe'}`, background: placeMode === 'home' ? '#dbeafe' : 'white', color: placeMode === 'home' ? '#1e40af' : '#60a5fa', cursor:'pointer' }}>🏠 บ้าน</button>
+            </div>
+          </div>
+          {(placeMode === 'hospital'
+            ? ["สถานที่ตรงนี้เรียกว่าอะไร (ชื่อโรงพยาบาล)", "อยู่ที่ชั้นอะไร / ห้องอะไร", "อำเภอ / เขต อะไร", "จังหวัดอะไร", "ภาคอะไร"]
+            : placeMode === 'home'
+            ? ["สถานที่ตรงนี้เรียกว่าอะไร (บ้าน / ชื่อหมู่บ้าน)", "อยู่ในหมู่บ้านอะไร / ละแวก ย่าน หรือ ถนนอะไร", "อำเภอ / เขต อะไร", "จังหวัดอะไร", "ภาคอะไร"]
+            : ["สถานที่ตรงนี้เรียกว่าอะไร", "อยู่ที่ชั้นอะไร / ห้องอะไร หรือ หมู่บ้านอะไร", "อำเภอ / เขต อะไร", "จังหวัดอะไร", "ภาคอะไร"]
+          ).map((q,i) => (
             <SubQ key={i} label={`${i+1}. ${q}`} val={oriPlaceS[i]} onChange={v=>{const a=[...oriPlaceS];a[i]=v;setOriPlaceS(a);}} />
           ))}
         </Section>
 
         <Section num="3" title="Registration" max={3} score={regTotal}>
+          <div style={{ background:'#fefce8', border:'1px solid #fde68a', borderRadius:12, padding:'12px 14px', marginBottom:16 }}>
+            <p style={{ fontSize:13, fontWeight:700, color:'#92400e', marginBottom:8 }}>เลือกชุดคำสำหรับการทดสอบ</p>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => { setWordSet('first'); setRegS(null); setRecS(Array(3).fill(null)); }} style={{ flex:1, padding:'8px', borderRadius:8, fontSize:12, fontWeight:700, border:`1.5px solid ${wordSet === 'first' ? '#d97706' : '#fde68a'}`, background: wordSet === 'first' ? '#fef3c7' : 'white', color: wordSet === 'first' ? '#92400e' : '#f59e0b', cursor:'pointer' }}>ครั้งแรก (ดอกไม้ แม่น้ำ รถไฟ)</button>
+              <button onClick={() => { setWordSet('retake'); setRegS(null); setRecS(Array(3).fill(null)); }} style={{ flex:1, padding:'8px', borderRadius:8, fontSize:12, fontWeight:700, border:`1.5px solid ${wordSet === 'retake' ? '#d97706' : '#fde68a'}`, background: wordSet === 'retake' ? '#fef3c7' : 'white', color: wordSet === 'retake' ? '#92400e' : '#f59e0b', cursor:'pointer' }}>ทดสอบซ้ำ (ต้นไม้ ทะเล รถยนต์)</button>
+            </div>
+          </div>
           <div style={{ background:MMSE_BG,border:`1px solid ${MMSE_BORDER}`,borderRadius:14,padding:14,marginBottom:14 }}>
             <p style={{ fontSize:13,color:'#0f766e',fontStyle:'italic',textAlign:'center',lineHeight:1.7,marginBottom:12 }}>
               "เดี๋ยวจะบอกชื่อของ 3 อย่าง ให้ฟังดีๆ จะบอกเพียงครั้งเดียว เมื่อพูดจบแล้วให้พูดตาม"
@@ -404,6 +429,12 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
         </Section>
 
         <Section num="5" title="Recall" max={3} score={recTotal}>
+          <div style={{ background:MMSE_BG, border:`1px solid ${MMSE_BORDER}`, borderRadius:10, padding:'8px 12px', marginBottom:12, display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+            <span style={{ fontSize:11, color:'#0f766e', fontWeight:700 }}>คำจากข้อ 3:</span>
+            {MMSE_WORDS.map(w => (
+              <span key={w} style={{ fontSize:12, fontWeight:800, color:MMSE_COLOR, background:'white', border:`1px solid ${MMSE_BORDER}`, borderRadius:6, padding:'2px 8px' }}>{w}</span>
+            ))}
+          </div>
           <p style={{ fontSize:13,color:'var(--mint-text2)',marginBottom:8 }}>ผู้ถูกทดสอบระลึกคำสิ่งของ 3 อย่างได้หรือไม่?</p>
           <div style={{ display:'flex',flexDirection:'column',gap:10 }}>
             {MMSE_WORDS.map((word, i) => (
@@ -459,7 +490,7 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
               <div style={{ background:'var(--mint-surface2)',border:'1px solid var(--mint-border2)',borderRadius:12,padding:'12px 14px' }}>
                 <p style={{ fontSize:13,color:'var(--mint-text2)',fontWeight:500,marginBottom:10 }}>6.5 อ่านและทำตาม</p>
                 <div style={{ textAlign:'center',fontSize:26,fontWeight:900,color:'var(--mint-text)',border:'1.5px solid var(--mint-border)',borderRadius:12,padding:16,marginBottom:10,background:'white',letterSpacing:'0.08em', boxShadow:'var(--shadow-sm)' }}>
-                  หลับตาของท่าน
+                  หลับตา
                 </div>
                 <YN val={langS.read} onChange={v=>setLangS(s=>({...s,read:v}))} />
               </div>
@@ -496,34 +527,27 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
         </Section>
 
         {/* 7. Visuospatial */}
-        <Section num="7" title="Visuospatial (การวาดภาพ)" max={edu==='none'?0:1} score={visuoTotal}>
-          {/* 🌟 7.1 วาดรูปห้าเหลี่ยมซ้อนกัน */}
-          {edu === 'none' ? (
-             <div style={{ padding: '12px', background: '#fff1f1', borderRadius: 10, fontSize: 12, color: '#dc2626' }}>
-               * ข้ามการทดสอบวาดภาพ
-             </div>
-          ) : (
-            <div style={{ background:'var(--mint-surface2)', border:'1px solid var(--mint-border2)', borderRadius:12, padding:'12px 14px' }}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
-                <p style={{ fontSize:13, color:'var(--mint-text2)', fontWeight:600 }}>7.1 วาดรูปห้าเหลี่ยมซ้อนทับกัน</p>
-                {visuoS === null ? (
-                  <button onClick={() => setFullscreen('draw')} style={{ padding:'6px 14px', borderRadius:8, fontSize:12, fontWeight:700, background:MMSE_BG, border:`1.5px solid ${MMSE_COLOR}`, color:MMSE_COLOR, cursor:'pointer', flexShrink:0 }}>
-                    🖥️ เริ่มทำ
-                  </button>
-                ) : (
-                  <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
-                    <span style={{ fontSize:13, fontWeight:800, color: visuoS === 1 ? '#10b981' : '#ef4444' }}>
-                      {visuoS === 1 ? '✓ 1/1' : '✗ 0/1'}
-                    </span>
-                    <button onClick={() => { setVisuoS(null); setFullscreen('draw'); }} style={{ fontSize:11, color:'var(--mint-muted)', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>ทำใหม่</button>
-                  </div>
-                )}
-              </div>
-              {visuoS === null && (
-                <p style={{ fontSize:11, color:'var(--mint-muted)' }}>กดปุ่ม "เริ่มทำ" เพื่อเปิดกระดานวาดรูปเต็มจอ</p>
+        <Section num="7" title="Visuospatial (การวาดภาพ)" max={1} score={visuoTotal}>
+          <div style={{ background:'var(--mint-surface2)', border:'1px solid var(--mint-border2)', borderRadius:12, padding:'12px 14px' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+              <p style={{ fontSize:13, color:'var(--mint-text2)', fontWeight:600 }}>7.1 วาดรูปห้าเหลี่ยมซ้อนทับกัน</p>
+              {visuoS === null ? (
+                <button onClick={() => setFullscreen('draw')} style={{ padding:'6px 14px', borderRadius:8, fontSize:12, fontWeight:700, background:MMSE_BG, border:`1.5px solid ${MMSE_COLOR}`, color:MMSE_COLOR, cursor:'pointer', flexShrink:0 }}>
+                  🖥️ เริ่มทำ
+                </button>
+              ) : (
+                <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                  <span style={{ fontSize:13, fontWeight:800, color: visuoS === 1 ? '#10b981' : '#ef4444' }}>
+                    {visuoS === 1 ? '✓ 1/1' : '✗ 0/1'}
+                  </span>
+                  <button onClick={() => { setVisuoS(null); setFullscreen('draw'); }} style={{ fontSize:11, color:'var(--mint-muted)', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>ทำใหม่</button>
+                </div>
               )}
             </div>
-          )}
+            {visuoS === null && (
+              <p style={{ fontSize:11, color:'var(--mint-muted)' }}>กดปุ่ม "เริ่มทำ" เพื่อเปิดกระดานวาดรูปเต็มจอ</p>
+            )}
+          </div>
         </Section>
 
         {/* Submit */}
@@ -535,7 +559,7 @@ export default function MMSEQuiz({ onBack, onComplete, patient }) {
             </span>
           </div>
           <div style={{ height:8,borderRadius:4,background:'var(--mint-border2)',overflow:'hidden',marginBottom:20 }}>
-            <div style={{ height:'100%',borderRadius:4,background:`linear-gradient(90deg,${!impaired?`${MMSE_COLOR},#0f766e`:'var(--mint-warn),#fcd34d'})`,width:`${(total/(edu==='none'?22:30))*100}%`,transition:'width 0.5s ease' }}/>
+            <div style={{ height:'100%',borderRadius:4,background:`linear-gradient(90deg,${!impaired?`${MMSE_COLOR},#0f766e`:'var(--mint-warn),#fcd34d'})`,width:`${(total/(edu==='none'?23:30))*100}%`,transition:'width 0.5s ease' }}/>
           </div>
           <ActionBtn onClick={handleFinish} variant="primary">ดูผลการประเมิน →</ActionBtn>
           <div style={{ height:8 }}/>

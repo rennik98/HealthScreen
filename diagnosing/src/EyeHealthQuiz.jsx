@@ -59,13 +59,13 @@ const EyeToggle = ({ side, val, onChange }) => (
 export default function EyeHealthQuiz({ onBack, onComplete, patient }) {
   const [phase, setPhase] = useState('screening'); // 'screening' | 'snellen' | 'done'
 
-  // Screening answers: each item has left/right
+  // Screening answers: q1/q2 are single (no per-eye), q3-q5 have left/right
   const [screen, setScreen] = useState({
-    q1: { left: null, right: null },  // distant vision
-    q2: { left: null, right: null },  // near vision
-    q3: { left: null, right: null },  // cataract
-    q4: { left: null, right: null },  // glaucoma
-    q5: { left: null, right: null },  // AMD
+    q1: { val: null },               // distant vision (single)
+    q2: { val: null },               // near vision (single)
+    q3: { left: null, right: null }, // cataract
+    q4: { left: null, right: null }, // glaucoma
+    q5: { left: null, right: null }, // AMD
   });
 
   // Snellen results
@@ -80,11 +80,15 @@ export default function EyeHealthQuiz({ onBack, onComplete, patient }) {
 
   const setSide = (q, side, val) => setScreen(prev => ({ ...prev, [q]: { ...prev[q], [side]: val } }));
 
-  const hasVisionProblem = Object.values(screen).some(v => v.left === 1 || v.right === 1);
+  const hasVisionProblem =
+    screen.q1.val === 1 || screen.q2.val === 1 ||
+    screen.q3.left === 1 || screen.q3.right === 1 ||
+    screen.q4.left === 1 || screen.q4.right === 1 ||
+    screen.q5.left === 1 || screen.q5.right === 1;
 
   const q1Items = [
-    { key: 'q1', label: '1. สายตาระยะไกล', bold: 'นับนิ้วในระยะ 3 เมตร ได้ถูกต้องน้อยกว่า 3 ใน 4 ครั้ง', note: '(ถ้าใช้แว่นสายตาอยู่แล้ว ให้สวมแว่นขณะทดสอบ)' },
-    { key: 'q2', label: '2. สายตาระยะใกล้', bold: 'อ่านหนังสือพิมพ์หน้าหนึ่งในระยะ 1 ฟุตไม่ได้', note: '(ถ้าใช้แว่นสายตาอยู่แล้ว ให้สวมแว่นขณะทดสอบ)' },
+    { key: 'q1', label: '1. สายตาระยะไกล', bold: 'นับนิ้วในระยะ 3 เมตร ได้ถูกต้องน้อยกว่า 3 ใน 4 ครั้ง', note: '(ถ้าใช้แว่นสายตาอยู่แล้ว ให้สวมแว่นขณะทดสอบ)', single: true },
+    { key: 'q2', label: '2. สายตาระยะใกล้', bold: 'อ่านหนังสือพิมพ์หน้าหนึ่งในระยะ 1 ฟุตไม่ได้', note: '(ถ้าใช้แว่นสายตาอยู่แล้ว ให้สวมแว่นขณะทดสอบ)', single: true },
     { key: 'q3', label: '3. ต้อกระจก', bold: 'ปิดตาดูทีละข้าง พบว่าตามัวคล้ายมีหมอกบัง' },
     { key: 'q4', label: '4. ต้อหิน', bold: 'ปิดตาดูทีละข้าง พบว่ามองเห็นชัดแต่ตรงกลาง ไม่เห็นรอบข้าง หรือมักเดินชนประตู สิ่งของบ่อยๆ' },
     { key: 'q5', label: '5. จอตาเสื่อมเนื่องจากอายุ', bold: 'ปิดตาดูทีละข้าง พบว่ามองเห็นจุดดำกลางภาพ หรือเห็นภาพบิดเบี้ยว' },
@@ -103,8 +107,12 @@ export default function EyeHealthQuiz({ onBack, onComplete, patient }) {
   const overallRefer = hasVisionProblem || snellenRefer;
 
   const handleFinishScreening = () => {
-    // เช็คว่าทำคัดกรองครบทั้ง 5 ข้อ (ซ้ายและขวา) หรือยัง
-    const isScreenComplete = Object.values(screen).every(q => q.left !== null && q.right !== null);
+    // q1/q2 single answer, q3-q5 require left+right
+    const isScreenComplete =
+      screen.q1.val !== null && screen.q2.val !== null &&
+      screen.q3.left !== null && screen.q3.right !== null &&
+      screen.q4.left !== null && screen.q4.right !== null &&
+      screen.q5.left !== null && screen.q5.right !== null;
     
     if (!isScreenComplete) {
       alert('⚠️ กรุณาประเมินการคัดกรองเบื้องต้นให้ครบทั้ง "ตาซ้าย" และ "ตาขวา" ในทุกข้อครับ');
@@ -144,10 +152,8 @@ export default function EyeHealthQuiz({ onBack, onComplete, patient }) {
         // ส่งข้อความแปลผลไปที่ Sheet โดยตรง (ต้องแก้ Apps Script รองรับ resultText ตามที่แนะนำไปก่อนหน้า)
         resultText: overallRefer ? 'ควรส่งต่อจักษุแพทย์' : 'ปกติ',
         breakdown: {
-          "1. สายตาระยะไกล (ซ้าย)": formatAns(screen.q1.left),
-          "1. สายตาระยะไกล (ขวา)": formatAns(screen.q1.right),
-          "2. สายตาระยะใกล้ (ซ้าย)": formatAns(screen.q2.left),
-          "2. สายตาระยะใกล้ (ขวา)": formatAns(screen.q2.right),
+          "1. สายตาระยะไกล": formatAns(screen.q1.val),
+          "2. สายตาระยะใกล้": formatAns(screen.q2.val),
           "3. ต้อกระจก (ซ้าย)": formatAns(screen.q3.left),
           "3. ต้อกระจก (ขวา)": formatAns(screen.q3.right),
           "4. ต้อหิน (ซ้าย)": formatAns(screen.q4.left),
@@ -203,19 +209,26 @@ export default function EyeHealthQuiz({ onBack, onComplete, patient }) {
           {/* Screening summary */}
           <div style={{ background: 'white', border: '1px solid var(--mint-border2)', borderRadius: 18, padding: 20, marginBottom: 16, boxShadow: 'var(--shadow-sm)' }}>
             <p style={{ fontSize: 11, color: 'var(--mint-muted)', marginBottom: 14, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>การคัดกรองสุขภาวะทางตา</p>
-            {q1Items.map(({ key, label }) => {
-              const lv = screen[key].left;
-              const rv = screen[key].right;
+            {q1Items.map(({ key, label, single }) => {
+              const hasIssue = single
+                ? screen[key].val === 1
+                : screen[key].left === 1 || screen[key].right === 1;
               return (
-                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, padding: '8px 12px', background: (lv === 1 || rv === 1) ? '#fff7ed' : '#f0fdf9', border: `1px solid ${(lv === 1 || rv === 1) ? '#fcd34d88' : '#6ee7d588'}`, borderRadius: 10 }}>
-                  <span style={{ fontSize: 14 }}>{(lv === 1 || rv === 1) ? '⚠️' : '✓'}</span>
+                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, padding: '8px 12px', background: hasIssue ? '#fff7ed' : '#f0fdf9', border: `1px solid ${hasIssue ? '#fcd34d88' : '#6ee7d588'}`, borderRadius: 10 }}>
+                  <span style={{ fontSize: 14 }}>{hasIssue ? '⚠️' : '✓'}</span>
                   <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: 'var(--mint-text2)' }}>{label}</span>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                    {[['ซ้าย', lv], ['ขวา', rv]].map(([side, v]) => (
-                      <span key={side} style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: v === 1 ? '#fef3c7' : v === 0 ? '#f0fdf9' : 'var(--mint-surface2)', color: v === 1 ? '#92400e' : v === 0 ? '#065f46' : 'var(--mint-muted)' }}>
-                        {side}: {v === 1 ? '⚠️' : v === 0 ? '✓' : '—'}
+                    {single ? (
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: screen[key].val === 1 ? '#fef3c7' : screen[key].val === 0 ? '#f0fdf9' : 'var(--mint-surface2)', color: screen[key].val === 1 ? '#92400e' : screen[key].val === 0 ? '#065f46' : 'var(--mint-muted)' }}>
+                        {screen[key].val === 1 ? '⚠️ พบปัญหา' : screen[key].val === 0 ? '✓ ปกติ' : '—'}
                       </span>
-                    ))}
+                    ) : (
+                      [['ซ้าย', screen[key].left], ['ขวา', screen[key].right]].map(([side, v]) => (
+                        <span key={side} style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: v === 1 ? '#fef3c7' : v === 0 ? '#f0fdf9' : 'var(--mint-surface2)', color: v === 1 ? '#92400e' : v === 0 ? '#065f46' : 'var(--mint-muted)' }}>
+                          {side}: {v === 1 ? '⚠️' : v === 0 ? '✓' : '—'}
+                        </span>
+                      ))
+                    )}
                   </div>
                 </div>
               );
@@ -462,17 +475,39 @@ export default function EyeHealthQuiz({ onBack, onComplete, patient }) {
           <p style={{ fontSize: 12, color: 'var(--mint-muted)', marginBottom: 14 }}>
             ระบุว่าผู้สูงอายุ <strong>ตาซ้าย / ตาขวา</strong> มีอาการดังต่อไปนี้หรือไม่
           </p>
-          {q1Items.map(({ key, label, bold, note }) => (
-            <div key={key} style={{ background: 'var(--mint-surface2)', border: `1px solid ${(screen[key].left === 1 || screen[key].right === 1) ? '#fcd34d88' : 'var(--mint-border2)'}`, borderRadius: 12, padding: '12px 14px', marginBottom: 10 }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--mint-text)', marginBottom: 4 }}>{label}</p>
-              <p style={{ fontSize: 12, color: 'var(--mint-text2)', fontStyle: 'italic', lineHeight: 1.6, marginBottom: note ? 2 : 8 }}>{bold}</p>
-              {note && <p style={{ fontSize: 11, color: 'var(--mint-muted)', marginBottom: 8 }}>{note}</p>}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <EyeToggle side="ซ้าย" val={screen[key].left} onChange={v => setSide(key, 'left', v)} />
-                <EyeToggle side="ขวา" val={screen[key].right} onChange={v => setSide(key, 'right', v)} />
+          {q1Items.map(({ key, label, bold, note, single }) => {
+            const hasIssue = single
+              ? screen[key].val === 1
+              : screen[key].left === 1 || screen[key].right === 1;
+            return (
+              <div key={key} style={{ background: 'var(--mint-surface2)', border: `1px solid ${hasIssue ? '#fcd34d88' : 'var(--mint-border2)'}`, borderRadius: 12, padding: '12px 14px', marginBottom: 10 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--mint-text)', marginBottom: 4 }}>{label}</p>
+                <p style={{ fontSize: 12, color: 'var(--mint-text2)', fontStyle: 'italic', lineHeight: 1.6, marginBottom: note ? 2 : 8 }}>{bold}</p>
+                {note && <p style={{ fontSize: 11, color: 'var(--mint-muted)', marginBottom: 8 }}>{note}</p>}
+                {single ? (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[
+                      [0, 'ไม่ใช่', '#065f46', '#f0fdf9', '#6ee7d5'],
+                      [1, 'ใช่', '#dc2626', '#fff1f1', '#fca5a5'],
+                    ].map(([v, lbl, col, bg, border]) => (
+                      <button key={v} onClick={() => setScreen(prev => ({ ...prev, [key]: { val: v } }))} style={{
+                        flex: 1, padding: '7px 8px', borderRadius: 9, fontSize: 12, fontWeight: 700,
+                        border: `1.5px solid ${screen[key].val === v ? border : 'var(--mint-border)'}`,
+                        background: screen[key].val === v ? bg : 'var(--mint-surface2)',
+                        color: screen[key].val === v ? col : 'var(--mint-muted)',
+                        cursor: 'pointer', transition: 'all 0.18s',
+                      }}>{screen[key].val === v ? (v === 1 ? '⚠️ ' : '✓ ') : ''}{lbl}</button>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <EyeToggle side="ซ้าย" val={screen[key].left} onChange={v => setSide(key, 'left', v)} />
+                    <EyeToggle side="ขวา" val={screen[key].right} onChange={v => setSide(key, 'right', v)} />
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </Section>
 
         {/* Result preview + proceed */}

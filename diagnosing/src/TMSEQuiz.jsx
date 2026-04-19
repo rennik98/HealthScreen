@@ -3,29 +3,15 @@ import nurseImg from './assets/nurse.jpg';
 import { useTimer } from './shared/useTimer';
 import { loadDraft, saveDraft, clearDraft } from './shared/quizStorage';
 
-/* ── Word sets (7 sets × 3 words each) ── */
-const WORD_SETS = [
-  ['กล้วย', 'ผู้นำ', 'หมู่บ้าน'],
-  ['แม่น้ำ', 'กัปตันเรือ', 'ลูกสาว'],
-  ['บ้าน', 'พระอาทิตย์ขึ้น', 'ฤดูกาล'],
-  ['ห้องครัว', 'ประเทศ', 'สวน'],
-  ['สวรรค์', 'แมว', 'เก้าอี้'],
-  ['โต๊ะ', 'เด็ก', 'นิ้ว'],
-  ['รูปภาพ', 'ภูเขา', 'สีเขียว'],
-];
+/* ── Word set ── */
+const TMSE_WORDS = ['ต้นไม้', 'รถยนต์', 'มือ'];
 
-const WORD_SET_LABELS = [
-  'ชุดคำที่ 1', 'ชุดคำที่ 2', 'ชุดคำที่ 3',
-  'ชุดคำที่ 4', 'ชุดคำที่ 5', 'ชุดคำที่ 6',
-  'ชุดคำที่ 7*',
-];
-
-const DAYS_ORDER = ['อาทิตย์','เสาร์','ศุกร์','พฤหัสบดี','พุธ','อังคาร','จันทร์'];
+const DAYS_ORDER = ['ศุกร์','พฤหัสบดี','พุธ','อังคาร','จันทร์'];
 const ORI_Q      = [
   'วันนี้เป็นวันอะไร?',
   'วันนี้วันที่เท่าไร?',
   'เดือนนี้เดือนอะไร?',
-  'ช่วงเวลาปัจจุบัน (เช้า/เที่ยง/บ่าย/เย็น)?',
+  'ขณะนี้เป็นช่วงเวลาอะไรของวัน (เช้า เที่ยง บ่าย เย็น)',
   'ที่นี่ที่ไหน?',
   'คนในภาพนี้อาชีพอะไร?',
 ];
@@ -96,11 +82,12 @@ const ActionBtn = ({ children, onClick, variant='primary' }) => {
 };
 
 /* ── Improved Freehand Drawing Canvas with undo + always-visible ── */
-function DrawingCanvas({ width=280, height=200, onScoreSelect }) {
-  const canvasRef   = useRef(null);
-  const drawing     = useRef(false);
-  const strokesRef  = useRef([]);   // completed strokes
-  const currentRef  = useRef([]);   // points in current stroke
+function DrawingCanvas({ height=200, onScoreSelect }) {
+  const canvasRef    = useRef(null);
+  const containerRef = useRef(null);
+  const drawing      = useRef(false);
+  const strokesRef   = useRef([]);
+  const currentRef   = useRef([]);
   const [confirmed, setConfirmed] = React.useState(false);
   const [isEmpty,   setIsEmpty]   = React.useState(true);
 
@@ -108,7 +95,7 @@ function DrawingCanvas({ width=280, height=200, onScoreSelect }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, width, height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = '#0f2b28';
     ctx.lineWidth   = 2.5;
     ctx.lineCap     = 'round';
@@ -122,9 +109,23 @@ function DrawingCanvas({ width=280, height=200, onScoreSelect }) {
       }
       ctx.stroke();
     }
-  }, [width, height]);
+  }, []);
 
-  useEffect(() => { redrawAll(); }, [redrawAll]);
+  const initSize = useCallback(() => {
+    const canvas    = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+    canvas.width  = container.clientWidth;
+    canvas.height = height;
+    redrawAll();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [height]);
+
+  useEffect(() => {
+    initSize();
+    window.addEventListener('resize', initSize);
+    return () => window.removeEventListener('resize', initSize);
+  }, [initSize]);
 
   const getPos = (e, canvas) => {
     const rect   = canvas.getBoundingClientRect();
@@ -180,30 +181,29 @@ function DrawingCanvas({ width=280, height=200, onScoreSelect }) {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-      {/* Canvas always visible */}
-      <canvas
-        ref={canvasRef}
-        width={width}
-        height={height}
-        style={{
-          display:'block',
-          border: confirmed ? '1.5px solid var(--mint-primary)' : '1.5px dashed var(--mint-border)',
-          borderRadius:14,
-          cursor: confirmed ? 'default' : 'crosshair',
-          background:'white',
-          touchAction:'none',
-          opacity: confirmed ? 0.92 : 1,
-          transition: 'border-color 0.2s, opacity 0.2s',
-          margin: '0 auto',
-        }}
-        onMouseDown={!confirmed ? startDraw : undefined}
-        onMouseMove={!confirmed ? draw : undefined}
-        onMouseUp={!confirmed ? stopDraw : undefined}
-        onMouseLeave={!confirmed ? stopDraw : undefined}
-        onTouchStart={!confirmed ? startDraw : undefined}
-        onTouchMove={!confirmed ? draw : undefined}
-        onTouchEnd={!confirmed ? stopDraw : undefined}
-      />
+      <div ref={containerRef} style={{ width:'100%', height, flexShrink:0 }}>
+        <canvas
+          ref={canvasRef}
+          style={{
+            display:'block', width:'100%', height:'100%',
+            border: confirmed ? '2px solid var(--mint-primary)' : '2px dashed var(--mint-border)',
+            borderRadius:20,
+            cursor: confirmed ? 'default' : 'crosshair',
+            background:'white',
+            touchAction:'none',
+            opacity: confirmed ? 0.92 : 1,
+            transition: 'border-color 0.2s, opacity 0.2s',
+            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)',
+          }}
+          onMouseDown={!confirmed ? startDraw : undefined}
+          onMouseMove={!confirmed ? draw : undefined}
+          onMouseUp={!confirmed ? stopDraw : undefined}
+          onMouseLeave={!confirmed ? stopDraw : undefined}
+          onTouchStart={!confirmed ? startDraw : undefined}
+          onTouchMove={!confirmed ? draw : undefined}
+          onTouchEnd={!confirmed ? stopDraw : undefined}
+        />
+      </div>
 
       {!confirmed ? (
         /* ── Drawing controls ── */
@@ -261,48 +261,12 @@ function DrawingCanvas({ width=280, height=200, onScoreSelect }) {
   );
 }
 
-/* ── Word Set Picker ── */
-function WordSetPicker({ selectedSet, onSelect }) {
-  return (
-    <div style={{ marginBottom:14 }}>
-      <p style={{ fontSize:12, color:'var(--mint-text2)', fontWeight:700, marginBottom:8 }}>
-        เลือกชุดคำศัพท์
-        <span style={{ fontSize:10, color:'var(--mint-muted)', fontWeight:400, marginLeft:6 }}>
-          (กดสุ่มหรือเลือกเอง)
-        </span>
-      </p>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6, marginBottom:8 }}>
-        {WORD_SET_LABELS.map((label, i) => (
-          <button key={i} onClick={() => onSelect(i)} style={{
-            padding:'8px 4px', borderRadius:9, fontSize:11, fontWeight:700,
-            border:`1.5px solid ${selectedSet===i ? 'var(--mint-primary)' : 'var(--mint-border)'}`,
-            background: selectedSet===i ? 'var(--mint-primary-xl)' : 'var(--mint-surface2)',
-            color: selectedSet===i ? 'var(--mint-primary)' : 'var(--mint-muted)',
-            cursor:'pointer', transition:'all 0.15s',
-          }}>
-            {label}
-          </button>
-        ))}
-        <button onClick={() => onSelect(Math.floor(Math.random() * WORD_SETS.length))} style={{
-          padding:'8px 4px', borderRadius:9, fontSize:11, fontWeight:700,
-          border:'1.5px solid var(--mint-border)',
-          background:'linear-gradient(135deg,var(--mint-primary),var(--mint-primary-l))',
-          color:'white', cursor:'pointer', transition:'all 0.15s',
-        }}>
-          🎲 สุ่ม
-        </button>
-      </div>
-    </div>
-  );
-}
+
 
 /* ── main ── */
 export default function TMSEQuiz({ onBack, onComplete, patient }) {
   const DRAFT_KEY = 'tmse';
   const draft = loadDraft(DRAFT_KEY, patient?.name);
-
-  const [wordSetIdx, setWordSetIdx] = useState(() => draft?.wordSetIdx ?? Math.floor(Math.random() * WORD_SETS.length));
-  const REG_WORDS = WORD_SETS[wordSetIdx];
 
   const [oriS,  setOriS]  = useState(draft?.oriS  ?? Array(6).fill(null));
   const [regS,  setRegS]  = useState(draft?.regS  ?? null);
@@ -318,20 +282,13 @@ export default function TMSEQuiz({ onBack, onComplete, patient }) {
 
   useEffect(() => {
     if (done) return;
-    saveDraft(DRAFT_KEY, patient?.name, { wordSetIdx, oriS, regS, attS, calcChk, calcS, langS, recS });
-  }, [wordSetIdx, oriS, regS, attS, calcChk, calcS, langS, recS, done, patient?.name]);
+    saveDraft(DRAFT_KEY, patient?.name, { oriS, regS, attS, calcChk, calcS, langS, recS });
+  }, [oriS, regS, attS, calcChk, calcS, langS, recS, done, patient?.name]);
 
   const handleBack = () => {
     if (window.confirm('ออกจากการทดสอบ?\nคำตอบที่ตอบไปแล้วจะถูกบันทึกไว้ชั่วคราว')) {
       onBack();
     }
-  };
-
-  // Reset recall scores when word set changes
-  const handleWordSetChange = (idx) => {
-    setWordSetIdx(idx);
-    setRegS(null);
-    setRecS(Array(3).fill(null));
   };
 
   const oriTotal  = oriS.filter(v=>v===1).length;
@@ -404,10 +361,9 @@ export default function TMSEQuiz({ onBack, onComplete, patient }) {
 
           {/* Word set used + duration */}
           <div style={{ display:'flex',alignItems:'center',gap:8,padding:'8px 14px',background:'var(--mint-surface2)',border:'1px solid var(--mint-border2)',borderRadius:10,marginBottom:16,flexWrap:'wrap' }}>
-            <span style={{ fontSize:11,color:'var(--mint-muted)' }}>ชุดคำที่ใช้:</span>
-            <span style={{ fontSize:11,fontWeight:700,color:'var(--mint-primary)' }}>{WORD_SET_LABELS[wordSetIdx]}</span>
+            <span style={{ fontSize:11,color:'var(--mint-muted)' }}>คำที่ใช้:</span>
             <div style={{ display:'flex',gap:4,marginLeft:4 }}>
-              {REG_WORDS.map(w=>(
+              {TMSE_WORDS.map(w=>(
                 <span key={w} style={{ fontSize:10,background:'var(--mint-primary-xl)',color:'var(--mint-primary)',padding:'1px 6px',borderRadius:6,fontWeight:700 }}>{w}</span>
               ))}
             </div>
@@ -490,20 +446,18 @@ export default function TMSEQuiz({ onBack, onComplete, patient }) {
       <div style={{ position:'fixed', inset:0, zIndex:9999, display:'flex', flexDirection:'column', background:'#f8fafc' }}>
         <div style={{ padding:'16px 24px', background:'white', borderBottom:'1px solid var(--mint-border)', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
           <button onClick={() => setFullscreen(null)} style={{ background:'none', border:'none', color:'var(--mint-muted)', fontSize:16, fontWeight:700, cursor:'pointer' }}>✕ ยกเลิก</button>
-          <span style={{ fontSize:16, fontWeight:800, color:'var(--mint-primary)' }}>5.6 วาดภาพตามตัวอย่าง</span>
-          <div style={{ width:60 }} />
+          <span style={{ fontSize:18, fontWeight:800, color:'var(--mint-primary)' }}>5.6 วาดภาพตามตัวอย่าง</span>
+          <div style={{ width:80 }} />
         </div>
         <div style={{ flex:1, padding:'24px', display:'flex', flexDirection:'column', width:'100%', margin:'0 auto', maxWidth:1000, overflowY:'auto' }}>
-          <div style={{ display:'flex', justifyContent:'center', marginBottom:16, flexShrink:0 }}>
-            <div style={{ textAlign:'center', background:'white', padding:'16px 32px', borderRadius:20, border:'1.5px solid var(--mint-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.05)' }}>
-              <p style={{ fontSize:15, fontWeight:800, color:'var(--mint-text)', marginBottom:12 }}>วาดภาพให้เหมือนต้นแบบมากที่สุด</p>
-              <svg width="160" height="120" viewBox="0 0 130 100" style={{ border:'1.5px solid var(--mint-border)', borderRadius:12, background:'white', padding:4 }}>
-                <polygon points="65,8 118,48 12,48" fill="none" stroke="var(--mint-text2)" strokeWidth="2.5" strokeLinejoin="round"/>
-                <rect x="22" y="48" width="86" height="44" fill="none" stroke="var(--mint-text2)" strokeWidth="2.5"/>
-              </svg>
-            </div>
+          <div style={{ alignSelf:'center', textAlign:'center', background:'white', padding:'16px 32px', borderRadius:20, border:'1.5px solid var(--mint-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.05)', marginBottom:16, flexShrink:0 }}>
+            <p style={{ fontSize:15, fontWeight:800, color:'var(--mint-text)', marginBottom:12 }}>วาดภาพให้เหมือนต้นแบบมากที่สุด</p>
+            <svg width="160" height="120" viewBox="0 0 130 100" style={{ display:'block', margin:'0 auto' }}>
+              <polygon points="65,8 118,48 12,48" fill="none" stroke="#1e293b" strokeWidth="2.5" strokeLinejoin="round"/>
+              <rect x="22" y="48" width="86" height="44" fill="none" stroke="#1e293b" strokeWidth="2.5"/>
+            </svg>
           </div>
-          <DrawingCanvas width={560} height={400} onScoreSelect={(v) => { setLangS(s=>({...s, copy:v})); setFullscreen(null); }} />
+          <DrawingCanvas height={400} onScoreSelect={(v) => { setLangS(s=>({...s, copy:v})); setFullscreen(null); }} />
         </div>
       </div>
     );
@@ -552,15 +506,12 @@ export default function TMSEQuiz({ onBack, onComplete, patient }) {
 
         {/* 2. Registration */}
         <Section num="2" title="การลงทะเบียนคำศัพท์ (Registration)" max={3} score={regS??0}>
-          {/* Word set picker */}
-          <WordSetPicker selectedSet={wordSetIdx} onSelect={handleWordSetChange} />
-
           <div style={{ background:'var(--mint-primary-xl)',border:'1px solid var(--mint-border)',borderRadius:14,padding:14,marginBottom:14 }}>
             <p style={{ fontSize:13,color:'var(--mint-text2)',fontStyle:'italic',textAlign:'center',lineHeight:1.7,marginBottom:12 }}>
-              "เดี๋ยวจะบอกชื่อของ 3 อย่าง ให้ฟังดีๆ จะบอกเพียงครั้งเดียว เมื่อพูดจบแล้วให้พูดตาม"
+              "เดี๋ยวจะบอกชื่อของ 3 อย่าง ให้ฟังดีๆ จะบอกเพียงครั้งเดียว เมื่อพูดจบแล้วให้พูดตามและจำไว้ (พูดห่างกันคำละ 1 วินาที)"
             </p>
             <div style={{ display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8 }}>
-              {REG_WORDS.map(w=>(
+              {TMSE_WORDS.map(w=>(
                 <div key={w} style={{ background:'white',border:'1.5px solid var(--mint-border)',borderRadius:10,padding:'12px 8px',textAlign:'center',fontWeight:800,fontSize:14,color:'var(--mint-primary)',boxShadow:'var(--shadow-sm)' }}>{w}</div>
               ))}
             </div>
@@ -581,7 +532,7 @@ export default function TMSEQuiz({ onBack, onComplete, patient }) {
 
         {/* 3. Attention */}
         <Section num="3" title="ความสนใจ (Attention)" max={5} score={attS??0}>
-          <p style={{ fontSize:13,color:'var(--mint-text2)',marginBottom:4 }}>ให้ผู้ถูกทดสอบบอกวันถอยหลัง เริ่มจาก <strong>อาทิตย์</strong></p>
+          <p style={{ fontSize:13,color:'var(--mint-text2)',marginBottom:4 }}>ให้ผู้ถูกทดสอบบอกวันถอยหลัง เริ่มจาก <strong>ศุกร์</strong></p>
           <p style={{ fontSize:11,color:'var(--mint-muted)',marginBottom:12 }}>กดจำนวนวันที่ตอบถูกต้องต่อเนื่องจากต้น (หยุดนับเมื่อตอบผิดครั้งแรก, max 5)</p>
           <div style={{ display:'flex',flexDirection:'column',gap:6,marginBottom:14 }}>
             {DAYS_ORDER.map((day,i)=>{
@@ -591,7 +542,7 @@ export default function TMSEQuiz({ onBack, onComplete, patient }) {
                   display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:11,
                   background: checked ? 'var(--mint-primary-xl)' : 'var(--mint-surface2)',
                   border:`1.5px solid ${checked ? 'var(--mint-primary)' : 'var(--mint-border2)'}`,
-                  opacity: i >= 5 ? 0.4 : 1, transition:'all 0.18s',
+                  transition:'all 0.18s',
                 }}>
                   <div style={{
                     width:22,height:22,borderRadius:6,flexShrink:0,
@@ -601,7 +552,7 @@ export default function TMSEQuiz({ onBack, onComplete, patient }) {
                     fontSize:13,color:'white',fontWeight:700,transition:'all 0.15s',
                   }}>{checked?'✓':''}</div>
                   <span style={{ fontSize:14,fontWeight:600,color:checked?'var(--mint-primary)':'var(--mint-text)',flex:1 }}>{day}</span>
-                  <span style={{ fontSize:11,color:'var(--mint-muted)' }}>ลำดับที่ {i+1}{i>=5?' (ไม่นับ)':''}</span>
+                  <span style={{ fontSize:11,color:'var(--mint-muted)' }}>ลำดับที่ {i+1}</span>
                 </div>
               );
             })}
@@ -762,13 +713,13 @@ export default function TMSEQuiz({ onBack, onComplete, patient }) {
           </p>
           {/* reminder of which set is active */}
           <div style={{ display:'flex',gap:6,marginBottom:12,padding:'8px 12px',background:'var(--mint-primary-xl)',border:'1px solid var(--mint-border)',borderRadius:10 }}>
-            <span style={{ fontSize:11,color:'var(--mint-primary)',fontWeight:700 }}>{WORD_SET_LABELS[wordSetIdx]}:</span>
-            {REG_WORDS.map(w=>(
+            <span style={{ fontSize:11,color:'var(--mint-primary)',fontWeight:700 }}>คำจากข้อ 2:</span>
+            {TMSE_WORDS.map(w=>(
               <span key={w} style={{ fontSize:11,color:'var(--mint-text)',fontWeight:800 }}>{w}</span>
             ))}
           </div>
           <div style={{ display:'flex',flexDirection:'column',gap:10 }}>
-            {REG_WORDS.map((word, i) => (
+            {TMSE_WORDS.map((word, i) => (
               <div key={word} style={{
                 background: recS[i]===1 ? 'var(--mint-primary-xl)' : recS[i]===0 ? '#fff1f1' : 'var(--mint-surface2)',
                 border: `1.5px solid ${recS[i]===1 ? 'var(--mint-primary)' : recS[i]===0 ? '#fca5a5' : 'var(--mint-border2)'}`,

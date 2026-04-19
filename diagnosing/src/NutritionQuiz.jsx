@@ -42,7 +42,7 @@ const RadioGroup = ({ question, options, val, onChange }) => (
 export default function NutritionQuiz({ tool, onBack, onComplete, patient }) {
   // MNA States
   const [stepMNA, setStepMNA] = useState('SF'); // 'SF', 'FULL'
-  const [mnaSF, setMnaSF] = useState(Array(6).fill(null));
+  const [mnaSF, setMnaSF] = useState(Array(7).fill(null)); // index 5=BMI, index 6=CC (alternative)
   const [mnaFull, setMnaFull] = useState(Array(12).fill(null));
 
   // MSRA-5 States
@@ -50,8 +50,12 @@ export default function NutritionQuiz({ tool, onBack, onComplete, patient }) {
 
   /* ── MNA Logic ── */
   const handleNextMnaSF = () => {
-    if (mnaSF.includes(null)) { alert('⚠️ กรุณาตอบ MNA แบบคัดกรองเบื้องต้นให้ครบ 6 ข้อ'); return; }
-    const sumSF = mnaSF.reduce((a, b) => a + b, 0);
+    // Q1-Q5 must be answered; Q6 (BMI) or Q7 (CC) must be answered
+    const q1to5 = mnaSF.slice(0, 5);
+    if (q1to5.includes(null)) { alert('⚠️ กรุณาตอบคำถามข้อ 1–5 ให้ครบ'); return; }
+    if (mnaSF[5] === null && mnaSF[6] === null) { alert('⚠️ กรุณาตอบคำถามข้อ 6 (BMI) หรือข้อ 7 (CC) อย่างน้อย 1 ข้อ'); return; }
+    const q6val = mnaSF[5] !== null ? mnaSF[5] : mnaSF[6];
+    const sumSF = q1to5.reduce((a, b) => a + b, 0) + q6val;
     if (sumSF <= 11) {
       alert('⚠️ ผลประเมินเบื้องต้นพบความเสี่ยง (คะแนน ≤ 11) ระบบจะพาไปสู่แบบประเมินแบบเต็ม (MNA-Full)');
       setStepMNA('FULL');
@@ -66,7 +70,8 @@ export default function NutritionQuiz({ tool, onBack, onComplete, patient }) {
   };
 
   const finishMNA = () => {
-    const sumSF = mnaSF.reduce((a, b) => (a || 0) + (b || 0), 0);
+    const q6val = mnaSF[5] !== null ? mnaSF[5] : (mnaSF[6] ?? 0);
+    const sumSF = mnaSF.slice(0, 5).reduce((a, b) => (a || 0) + (b || 0), 0) + q6val;
     const sumFull = stepMNA === 'FULL' ? mnaFull.reduce((a, b) => (a || 0) + (b || 0), 0) : 0;
     const totalMNA = sumSF + sumFull;
 
@@ -87,26 +92,27 @@ export default function NutritionQuiz({ tool, onBack, onComplete, patient }) {
         impaired, duration: 0, resultText: res,
         breakdown: {
           "--- MNA Short Form ---": "",
-          "A. ความอยากอาหารลดลง": mnaSF[0] ?? '-',
-          "B. น้ำหนักลดใน 3 เดือน": mnaSF[1] ?? '-',
-          "C. การเคลื่อนไหว": mnaSF[2] ?? '-',
-          "D. ความเครียด/ป่วยหนัก": mnaSF[3] ?? '-',
-          "E. ปัญหาประสาท/สมอง": mnaSF[4] ?? '-',
-          "F. BMI": mnaSF[5] ?? '-',
+          "1. ในช่วง 3 เดือนที่ผ่านมา รับประทานอาหารได้น้อยลงเนื่องจากความอยากอาหารลดลง มีปัญหาการย่อย การเคี้ยว หรือปัญหาการกลืนหรือไม่": mnaSF[0] ?? '-',
+          "2. ในช่วง 3 เดือนที่ผ่านมา น้ำหนักลดลงหรือไม่": mnaSF[1] ?? '-',
+          "3. สามารถเคลื่อนไหวได้เองหรือไม่": mnaSF[2] ?? '-',
+          "4. ใน 3 เดือนที่ผ่านมา มีความเครียดรุนแรงหรือป่วยเฉียบพลันหรือไม่": mnaSF[3] ?? '-',
+          "5. มีปัญหาทางจิตประสาท (Neuropsychological problems) หรือไม่": mnaSF[4] ?? '-',
+          "6. ดัชนีมวลกาย (BMI)": mnaSF[5] ?? '-',
+          "7. เส้นรอบวงน่อง CC (ใช้แทน BMI)": mnaSF[6] ?? '-',
           "คะแนน MNA-SF": sumSF,
           "--- MNA Full Form ---": stepMNA === 'FULL' ? "" : "ไม่ได้ประเมิน",
-          "G. อยู่เป็นอิสระ": mnaFull[0] ?? '-',
-          "H. ยา >3 ชนิด": mnaFull[1] ?? '-',
-          "I. แผลกดทับ": mnaFull[2] ?? '-',
-          "J. มื้ออาหารหลัก/วัน": mnaFull[3] ?? '-',
-          "K. การบริโภคโปรตีน": mnaFull[4] ?? '-',
-          "L. ผักผลไม้ ≥2 ส่วน/วัน": mnaFull[5] ?? '-',
-          "M. ปริมาณน้ำดื่ม": mnaFull[6] ?? '-',
-          "N. รูปแบบการกิน": mnaFull[7] ?? '-',
-          "O. ประเมินโภชนาการตนเอง": mnaFull[8] ?? '-',
-          "P. เทียบสุขภาพกับคนอื่น": mnaFull[9] ?? '-',
-          "Q. เส้นรอบวงแขน": mnaFull[10] ?? '-',
-          "R. เส้นรอบน่อง": mnaFull[11] ?? '-',
+          "G. ช่วยเหลือตัวเองได้หรือไม่": mnaFull[0] ?? '-',
+          "H. รับประทานยามากกว่า 3 ชนิดต่อวันหรือไม่": mnaFull[1] ?? '-',
+          "I. มีแผลกดทับหรือแผลที่ผิวหนังหรือไม่": mnaFull[2] ?? '-',
+          "J. รับประทานอาหารเต็มมื้อ ได้กี่มื้อต่อวัน": mnaFull[3] ?? '-',
+          "K. รับประทานอาหารจำพวกโปรตีน": mnaFull[4] ?? '-',
+          "L. รับประทานผักหรือผลไม้อย่างน้อย 2 หน่วยบริโภคต่อวันหรือไม่": mnaFull[5] ?? '-',
+          "M. ดื่มเครื่องดื่มปริมาณเท่าไรต่อวัน": mnaFull[6] ?? '-',
+          "N. ความสามารถในการช่วยเหลือตัวเองขณะรับประทานอาหาร": mnaFull[7] ?? '-',
+          "O. ท่านคิดว่าตนเองมีภาวะโภชนาการเป็นอย่างไร": mnaFull[8] ?? '-',
+          "P. เมื่อเทียบกับคนในวัยเดียวกัน ท่านคิดว่าสุขภาพของตนเป็นอย่างไร": mnaFull[9] ?? '-',
+          "Q. เส้นรอบวงแขน (Mid-arm circumference; MAC)": mnaFull[10] ?? '-',
+          "R. เส้นรอบวงน่อง (Calf circumference; CC)": mnaFull[11] ?? '-',
           "คะแนนรวม MNA": stepMNA === 'FULL' ? totalMNA : '-',
           "การแปลผลโภชนาการ": res,
         }
@@ -115,25 +121,25 @@ export default function NutritionQuiz({ tool, onBack, onComplete, patient }) {
   };
 
   /* ── MSRA-5 Logic ── */
+  // Max score: 5+2+15+2+10 = 34; cutoff ≤ 20 = sarcopenia risk
   const handleFinishMSRA = () => {
     if (msra.includes(null)) { alert('⚠️ กรุณาตอบ Modified MSRA-5 ให้ครบทั้ง 5 ข้อ'); return; }
-    // การให้คะแนน: Yes=0 (มีอาการ), No=1 (ไม่มีอาการ) -> คะแนนเต็ม 5
     const sumMSRA = msra.reduce((a, b) => a + b, 0);
-    const impaired = sumMSRA <= 3;
+    const impaired = sumMSRA <= 20;
     const res = impaired ? 'เสี่ยงต่อภาวะมวลกล้ามเนื้อน้อย (Sarcopenia)' : 'ปกติ (มวลกล้ามเนื้ออยู่ในเกณฑ์)';
 
     if (onComplete) {
       onComplete({
         type: 'Modified MSRA-5',
         totalScore: sumMSRA,
-        maxScore: 5,
+        maxScore: 34,
         impaired, duration: 0, resultText: res,
         breakdown: {
-          "1. อายุ > 70 ปี": msra[0] === 0 ? 'ใช่' : 'ไม่ใช่',
-          "2. น้ำหนักลด > 2กก. ใน 1 ปี": msra[1] === 0 ? 'ใช่' : 'ไม่ใช่',
-          "3. เดิน 1000ม. ไม่ได้": msra[2] === 0 ? 'ใช่' : 'ไม่ใช่',
-          "4. ลุกจากเก้าอี้โดยไม่ใช้แขนไม่ได้": msra[3] === 0 ? 'ใช่' : 'ไม่ใช่',
-          "5. เส้นรอบน่อง ≤ 31 ซม.": msra[4] === 0 ? 'ใช่' : 'ไม่ใช่',
+          "1. อายุ": msra[0],
+          "2. นอนโรงพยาบาลในช่วงปีที่ผ่านมา": msra[1],
+          "3. ระดับการทำกิจกรรม": msra[2],
+          "4. รับประทานอาหาร 3 มื้อเป็นประจำ": msra[3],
+          "5. น้ำหนักลดลงใน 1 ปีที่ผ่านมา": msra[4],
           "การแปลผล MSRA-5": res,
         }
       });
@@ -148,21 +154,20 @@ export default function NutritionQuiz({ tool, onBack, onComplete, patient }) {
 
   // Render MSRA-5
   if (tool === 'MSRA5') {
-    const opts = [{v:0, l:'ใช่ (มีความเสี่ยง)', warn:true}, {v:1, l:'ไม่ใช่ (ปกติ)'}];
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         <div style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(255,251,235,0.9)', backdropFilter: 'blur(18px)', borderBottom: `1px solid ${NUTRI_BORDER}`, padding: '0 16px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button onClick={handleBack} style={{ background: 'none', border: 'none', color: 'var(--mint-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>← กลับ</button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Cross s={14} c={NUTRI_COLOR} /><span style={{ fontSize: 14, fontWeight: 700, color: 'var(--mint-text)' }}>ภาวะมวลกล้ามเนื้อน้อย (MSRA-5)</span></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Cross s={14} c={NUTRI_COLOR} /><span style={{ fontSize: 14, fontWeight: 700, color: 'var(--mint-text)' }}>ภาวะมวลกล้ามเนื้อ (MSRA-5)</span></div>
           <div style={{ width: 40 }} />
         </div>
         <div style={{ flex: 1, maxWidth: 600, margin: '0 auto', width: '100%', padding: '20px 14px' }}>
           <Section title="Modified MSRA-5" desc="แบบคัดกรองภาวะมวลกล้ามเนื้อน้อย (Sarcopenia)">
-            <RadioGroup question="1. อายุมากกว่า 70 ปี" options={opts} val={msra[0]} onChange={(v) => { const n=[...msra]; n[0]=v; setMsra(n); }} />
-            <RadioGroup question="2. น้ำหนักลดลงมากกว่า 2 กก. ในช่วง 1 ปีที่ผ่านมา" options={opts} val={msra[1]} onChange={(v) => { const n=[...msra]; n[1]=v; setMsra(n); }} />
-            <RadioGroup question="3. ไม่สามารถเดินได้ในระยะทาง 1,000 เมตร" options={opts} val={msra[2]} onChange={(v) => { const n=[...msra]; n[2]=v; setMsra(n); }} />
-            <RadioGroup question="4. ไม่สามารถลุกจากเก้าอี้ได้หากไม่ใช้แขนยัน" options={opts} val={msra[3]} onChange={(v) => { const n=[...msra]; n[3]=v; setMsra(n); }} />
-            <RadioGroup question="5. ความยาวเส้นรอบน่อง ≤ 31 ซม." options={opts} val={msra[4]} onChange={(v) => { const n=[...msra]; n[4]=v; setMsra(n); }} />
+            <RadioGroup question="1. คุณอายุเท่าไหร่" options={[{v:0,l:'มากกว่าหรือเท่ากับ 70 ปี',warn:true},{v:5,l:'น้อยกว่า 70 ปี'}]} val={msra[0]} onChange={(v) => { const n=[...msra]; n[0]=v; setMsra(n); }} />
+            <RadioGroup question="2. คุณได้รับการรักษาโดยการนอนโรงพยาบาลในช่วงปีที่ผ่านมาหรือไม่" options={[{v:0,l:'รับการรักษาและมากกว่า 1 ครั้ง',warn:true},{v:1,l:'รับการรักษาเพียงครั้งเดียว'},{v:2,l:'ไม่ได้รับการรักษาในโรงพยาบาล'}]} val={msra[1]} onChange={(v) => { const n=[...msra]; n[1]=v; setMsra(n); }} />
+            <RadioGroup question="3. ข้อใดเป็นระดับในการทำกิจกรรมของคุณ" options={[{v:0,l:'ฉันสามารถเดินได้น้อยกว่า 1,000 เมตร (1 กิโลเมตร)',warn:true},{v:15,l:'ฉันสามารถเดินได้มากกว่า 1,000 เมตร (1 กิโลเมตร)'}]} val={msra[2]} onChange={(v) => { const n=[...msra]; n[2]=v; setMsra(n); }} />
+            <RadioGroup question="4. คุณรับประทานอาหาร 3 มื้อเป็นประจำหรือไม่" options={[{v:0,l:'ไม่ ฉันข้ามอาหารบางมื้อตั้งแต่ 2 ครั้งต่อสัปดาห์ขึ้นไป',warn:true},{v:2,l:'รับประทานอาหาร 3 มื้อเป็นประจำ'}]} val={msra[3]} onChange={(v) => { const n=[...msra]; n[3]=v; setMsra(n); }} />
+            <RadioGroup question="5. คุณน้ำหนักลดลงในช่วง 1 ปีที่ผ่านมาหรือไม่" options={[{v:0,l:'ลดลงมากกว่า 2 กิโลกรัม',warn:true},{v:10,l:'ลดลงน้อยกว่าหรือเท่ากับ 2 กิโลกรัม'}]} val={msra[4]} onChange={(v) => { const n=[...msra]; n[4]=v; setMsra(n); }} />
           </Section>
           <button onClick={handleFinishMSRA} style={{ width: '100%', padding: 14, borderRadius: 13, fontSize: 14, fontWeight: 700, background: `linear-gradient(135deg,${NUTRI_COLOR},#b45309)`, color: 'white', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(217, 119, 6, 0.3)' }}>บันทึกและดูผล →</button>
         </div>
@@ -181,13 +186,17 @@ export default function NutritionQuiz({ tool, onBack, onComplete, patient }) {
             <div style={{ width: 40 }} />
           </div>
           <div style={{ flex: 1, maxWidth: 600, margin: '0 auto', width: '100%', padding: '20px 14px' }}>
-            <Section title="MNA Short Form (คัดกรองเบื้องต้น)">
-              <RadioGroup question="A. ความอยากอาหารลดลงในช่วง 3 เดือนที่ผ่านมา?" options={[{v:0,l:'ลดลงมาก'},{v:1,l:'ลดลงปานกลาง'},{v:2,l:'ไม่ลดลง'}]} val={mnaSF[0]} onChange={(v)=>{const n=[...mnaSF];n[0]=v;setMnaSF(n);}} />
-              <RadioGroup question="B. น้ำหนักลดลงในช่วง 3 เดือนที่ผ่านมา?" options={[{v:0,l:'> 3 กก.'},{v:1,l:'ไม่ทราบ'},{v:2,l:'1-3 กก.'},{v:3,l:'ไม่ลดลง'}]} val={mnaSF[1]} onChange={(v)=>{const n=[...mnaSF];n[1]=v;setMnaSF(n);}} />
-              <RadioGroup question="C. การเคลื่อนไหว" options={[{v:0,l:'ติดเตียง/รถเข็น'},{v:1,l:'ลุกเดินได้ แต่ไม่ออกนอกบ้าน'},{v:2,l:'ออกนอกบ้านได้ปกติ'}]} val={mnaSF[2]} onChange={(v)=>{const n=[...mnaSF];n[2]=v;setMnaSF(n);}} />
-              <RadioGroup question="D. มีความเครียดรุนแรงหรือป่วยหนักใน 3 เดือน?" options={[{v:0,l:'มี'},{v:2,l:'ไม่มี'}]} val={mnaSF[3]} onChange={(v)=>{const n=[...mnaSF];n[3]=v;setMnaSF(n);}} />
-              <RadioGroup question="E. ปัญหาทางประสาท/สมอง" options={[{v:0,l:'สมองเสื่อม/ซึมเศร้ารุนแรง'},{v:1,l:'สมองเสื่อมเล็กน้อย'},{v:2,l:'ไม่มีปัญหา'}]} val={mnaSF[4]} onChange={(v)=>{const n=[...mnaSF];n[4]=v;setMnaSF(n);}} />
-              <RadioGroup question="F. ดัชนีมวลกาย (BMI)" options={[{v:0,l:'< 19'},{v:1,l:'19 ถึง < 21'},{v:2,l:'21 ถึง < 23'},{v:3,l:'≥ 23'}]} val={mnaSF[5]} onChange={(v)=>{const n=[...mnaSF];n[5]=v;setMnaSF(n);}} />
+            <Section title="ส่วนที่ 1: การคัดกรองเบื้องต้น">
+              <RadioGroup question="1. ในช่วง 3 เดือนที่ผ่านมา รับประทานอาหารได้น้อยลงเนื่องจากความอยากอาหารลดลง มีปัญหาการย่อย การเคี้ยว หรือปัญหาการกลืนหรือไม่" options={[{v:0,l:'0 = รับประทานอาหารน้อยลงอย่างมาก',warn:true},{v:1,l:'1 = รับประทานอาหารน้อยลงปานกลาง'},{v:2,l:'2 = การรับประทานอาหารไม่เปลี่ยนแปลง'}]} val={mnaSF[0]} onChange={(v)=>{const n=[...mnaSF];n[0]=v;setMnaSF(n);}} />
+              <RadioGroup question="2. ในช่วง 3 เดือนที่ผ่านมา น้ำหนักลดลงหรือไม่" options={[{v:0,l:'0 = น้ำหนักลดลงมากกว่า 3 กิโลกรัม',warn:true},{v:1,l:'1 = ไม่ทราบ'},{v:2,l:'2 = น้ำหนักลดลงระหว่าง 1-3 กิโลกรัม'},{v:3,l:'3 = น้ำหนักไม่ลดลง'}]} val={mnaSF[1]} onChange={(v)=>{const n=[...mnaSF];n[1]=v;setMnaSF(n);}} />
+              <RadioGroup question="3. สามารถเคลื่อนไหวได้เองหรือไม่" options={[{v:0,l:'0 = นอนบนเตียงหรือต้องอาศัยรถเข็นตลอดเวลา',warn:true},{v:1,l:'1 = ลุกจากเตียงหรือรถเข็นได้บ้าง แต่ไม่สามารถไปข้างนอกได้เอง'},{v:2,l:'2 = เดินและเคลื่อนไหวได้ตามปกติ'}]} val={mnaSF[2]} onChange={(v)=>{const n=[...mnaSF];n[2]=v;setMnaSF(n);}} />
+              <RadioGroup question="4. ใน 3 เดือนที่ผ่านมา มีความเครียดรุนแรงหรือป่วยเฉียบพลันหรือไม่" options={[{v:0,l:'0 = มี',warn:true},{v:2,l:'2 = ไม่มี'}]} val={mnaSF[3]} onChange={(v)=>{const n=[...mnaSF];n[3]=v;setMnaSF(n);}} />
+              <RadioGroup question="5. มีปัญหาทางจิตประสาท (Neuropsychological problems) หรือไม่" options={[{v:0,l:'0 = ความจำเสื่อมหรือซึมเศร้าอย่างรุนแรง',warn:true},{v:1,l:'1 = ความจำเสื่อมเล็กน้อย'},{v:2,l:'2 = ไม่มีปัญหาทางประสาท'}]} val={mnaSF[4]} onChange={(v)=>{const n=[...mnaSF];n[4]=v;setMnaSF(n);}} />
+              <RadioGroup question="6. ดัชนีมวลกาย (BMI) = น้ำหนักตัว (กก.) / [ส่วนสูง (ม.)²] มีค่าเท่าใด" options={[{v:0,l:'0 = BMI น้อยกว่า 19',warn:true},{v:1,l:'1 = BMI ตั้งแต่ 19 แต่น้อยกว่า 21'},{v:2,l:'2 = BMI ตั้งแต่ 21 แต่น้อยกว่า 23'},{v:3,l:'3 = BMI ตั้งแต่ 23 ขึ้นไป'}]} val={mnaSF[5]} onChange={(v)=>{const n=[...mnaSF];n[5]=v;n[6]=null;setMnaSF(n);}} />
+              <div style={{ padding: '8px 12px', background: '#fff7ed', border: '1px solid #fcd34d', borderRadius: 10, fontSize: 12, color: '#92400e', fontWeight: 600 }}>
+                หากไม่สามารถหาค่าดัชนีมวลกายได้ให้เปลี่ยนคำถามข้อ 6 เป็น 7
+              </div>
+              <RadioGroup question="7. เส้นรอบวงน่อง (Calf circumference; CC) มีค่ากี่เซนติเมตร (ใช้ในกรณีที่ไม่สามารถหาค่า BMI ได้)" options={[{v:0,l:'0 = น้อยกว่า 31 เซนติเมตร',warn:true},{v:3,l:'3 = ตั้งแต่ 31 เซนติเมตรขึ้นไป'}]} val={mnaSF[6]} onChange={(v)=>{const n=[...mnaSF];n[6]=v;n[5]=null;setMnaSF(n);}} />
             </Section>
             <button onClick={handleNextMnaSF} style={{ width: '100%', padding: 14, borderRadius: 13, fontSize: 14, fontWeight: 700, background: `linear-gradient(135deg,${NUTRI_COLOR},#b45309)`, color: 'white', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(217, 119, 6, 0.3)' }}>ถัดไป →</button>
           </div>
@@ -207,19 +216,25 @@ export default function NutritionQuiz({ tool, onBack, onComplete, patient }) {
             <div style={{ padding: '12px', background: '#fff7ed', border: '1px solid #fcd34d', borderRadius: 12, marginBottom: 16 }}>
               <p style={{ fontSize: 12, color: '#92400e', fontWeight: 600 }}>⚠️ คะแนน MNA-SF ≤ 11 (มีความเสี่ยง) กรุณาประเมินแบบเต็มต่อ</p>
             </div>
-            <Section title="MNA Full Form (ประเมินแบบเต็ม)">
-              <RadioGroup question="G. ผู้สูงอายุอาศัยอยู่เป็นอิสระที่บ้าน?" options={[{v:0,l:'ไม่ใช่'},{v:1,l:'ใช่'}]} val={mnaFull[0]} onChange={(v)=>{const n=[...mnaFull];n[0]=v;setMnaFull(n);}} />
-              <RadioGroup question="H. กินยามากกว่า 3 ชนิดต่อวัน?" options={[{v:0,l:'ใช่'},{v:1,l:'ไม่ใช่'}]} val={mnaFull[1]} onChange={(v)=>{const n=[...mnaFull];n[1]=v;setMnaFull(n);}} />
-              <RadioGroup question="I. มีแผลกดทับ หรือแผลที่ผิวหนัง?" options={[{v:0,l:'ใช่'},{v:1,l:'ไม่ใช่'}]} val={mnaFull[2]} onChange={(v)=>{const n=[...mnaFull];n[2]=v;setMnaFull(n);}} />
-              <RadioGroup question="J. กินอาหารมื้อหลักวันละกี่มื้อ?" options={[{v:0,l:'1 มื้อ'},{v:1,l:'2 มื้อ'},{v:2,l:'3 มื้อ'}]} val={mnaFull[3]} onChange={(v)=>{const n=[...mnaFull];n[3]=v;setMnaFull(n);}} />
-              <RadioGroup question="K. บริโภคโปรตีน (นม/ไข่/ถั่ว/เนื้อสัตว์) ได้ครบตามเกณฑ์กี่อย่าง?" options={[{v:0,l:'0-1 อย่าง'},{v:0.5,l:'2 อย่าง'},{v:1,l:'ครบ 3 อย่าง'}]} val={mnaFull[4]} onChange={(v)=>{const n=[...mnaFull];n[4]=v;setMnaFull(n);}} />
-              <RadioGroup question="L. กินผักผลไม้อย่างน้อยวันละ 2 ส่วน?" options={[{v:0,l:'ไม่ใช่'},{v:1,l:'ใช่'}]} val={mnaFull[5]} onChange={(v)=>{const n=[...mnaFull];n[5]=v;setMnaFull(n);}} />
-              <RadioGroup question="M. ปริมาณน้ำดื่มต่อวัน" options={[{v:0,l:'< 3 แก้ว'},{v:0.5,l:'3-5 แก้ว'},{v:1,l:'> 5 แก้ว'}]} val={mnaFull[6]} onChange={(v)=>{const n=[...mnaFull];n[6]=v;setMnaFull(n);}} />
-              <RadioGroup question="N. รูปแบบการกินอาหาร" options={[{v:0,l:'ต้องมีคนป้อน'},{v:1,l:'กินเองได้แต่ลำบาก'},{v:2,l:'กินเองได้ปกติ'}]} val={mnaFull[7]} onChange={(v)=>{const n=[...mnaFull];n[7]=v;setMnaFull(n);}} />
-              <RadioGroup question="O. ประเมินภาวะโภชนาการตนเอง" options={[{v:0,l:'ขาดสารอาหาร'},{v:1,l:'ไม่แน่ใจ'},{v:2,l:'ปกติ'}]} val={mnaFull[8]} onChange={(v)=>{const n=[...mnaFull];n[8]=v;setMnaFull(n);}} />
-              <RadioGroup question="P. เทียบสุขภาพกับคนวัยเดียวกัน" options={[{v:0,l:'แย่กว่า'},{v:0.5,l:'ไม่แน่ใจ'},{v:1,l:'เท่าๆ กัน'},{v:2,l:'ดีกว่า'}]} val={mnaFull[9]} onChange={(v)=>{const n=[...mnaFull];n[9]=v;setMnaFull(n);}} />
-              <RadioGroup question="Q. เส้นรอบวงแขน (MAC)" options={[{v:0,l:'< 21 ซม.'},{v:0.5,l:'21-22 ซม.'},{v:1,l:'≥ 22 ซม.'}]} val={mnaFull[10]} onChange={(v)=>{const n=[...mnaFull];n[10]=v;setMnaFull(n);}} />
-              <RadioGroup question="R. เส้นรอบน่อง (CC)" options={[{v:0,l:'< 31 ซม.'},{v:1,l:'≥ 31 ซม.'}]} val={mnaFull[11]} onChange={(v)=>{const n=[...mnaFull];n[11]=v;setMnaFull(n);}} />
+            <Section title="ส่วนที่ 1: ข้อมูลด้านสุขภาพทั่วไป">
+              <RadioGroup question="ช่วยเหลือตัวเองได้หรือไม่ (ไม่ได้อยู่ในความดูแลของสถานพักฟื้นหรือโรงพยาบาล)" options={[{v:1,l:'1 = ใช่ (อยู่บ้าน/ดูแลตัวเองได้)'},{v:0,l:'0 = ไม่ใช่ (อยู่สถานพักฟื้น)',warn:true}]} val={mnaFull[0]} onChange={(v)=>{const n=[...mnaFull];n[0]=v;setMnaFull(n);}} />
+              <RadioGroup question="รับประทานยามากกว่า 3 ชนิดต่อวันหรือไม่" options={[{v:0,l:'0 = ใช่',warn:true},{v:1,l:'1 = ไม่ใช่'}]} val={mnaFull[1]} onChange={(v)=>{const n=[...mnaFull];n[1]=v;setMnaFull(n);}} />
+              <RadioGroup question="มีแผลกดทับหรือแผลที่ผิวหนังหรือไม่" options={[{v:0,l:'0 = ใช่',warn:true},{v:1,l:'1 = ไม่ใช่'}]} val={mnaFull[2]} onChange={(v)=>{const n=[...mnaFull];n[2]=v;setMnaFull(n);}} />
+            </Section>
+            <Section title="ส่วนที่ 2: พฤติกรรมการบริโภค">
+              <RadioGroup question="รับประทานอาหารเต็มมื้อ ได้กี่มื้อต่อวัน" options={[{v:0,l:'0 = 1 มื้อ',warn:true},{v:1,l:'1 = 2 มื้อ'},{v:2,l:'2 = 3 มื้อ'}]} val={mnaFull[3]} onChange={(v)=>{const n=[...mnaFull];n[3]=v;setMnaFull(n);}} />
+              <RadioGroup question="รับประทานอาหารจำพวกโปรตีนเหล่านี้บ้างหรือไม่: ดื่มนมหรือผลิตภัณฑ์จากนม (เช่น ชีส โยเกิร์ต) อย่างน้อย 1 หน่วยบริโภคต่อวัน / ทานถั่วหรือไข่อย่างน้อย 2 หน่วยบริโภคต่อสัปดาห์ / ทานเนื้อสัตว์ ปลา หรือสัตว์ปีกทุกวัน" options={[{v:0,l:'0 = ใช่เพียง 1 ข้อ หรือไม่ใช่เลย',warn:true},{v:0.5,l:'0.5 = ใช่ 2 ข้อ'},{v:1,l:'1 = ใช่ครบทั้ง 3 ข้อ'}]} val={mnaFull[4]} onChange={(v)=>{const n=[...mnaFull];n[4]=v;setMnaFull(n);}} />
+              <RadioGroup question="รับประทานผักหรือผลไม้อย่างน้อย 2 หน่วยบริโภคต่อวันหรือไม่" options={[{v:0,l:'0 = ไม่ใช่ (น้อยกว่า 2 หน่วยบริโภค)',warn:true},{v:1,l:'1 = ใช่ (ตั้งแต่ 2 หน่วยบริโภคขึ้นไป)'}]} val={mnaFull[5]} onChange={(v)=>{const n=[...mnaFull];n[5]=v;setMnaFull(n);}} />
+              <RadioGroup question="ดื่มเครื่องดื่ม (น้ำ น้ำผลไม้ กาแฟ ชา นม หรืออื่นๆ) ปริมาณเท่าไรต่อวัน" options={[{v:0,l:'0 = น้อยกว่า 3 ถ้วย',warn:true},{v:0.5,l:'0.5 = 3-5 ถ้วย'},{v:1,l:'1 = มากกว่า 5 ถ้วย'}]} val={mnaFull[6]} onChange={(v)=>{const n=[...mnaFull];n[6]=v;setMnaFull(n);}} />
+              <RadioGroup question="ความสามารถในการช่วยเหลือตัวเองขณะรับประทานอาหารเป็นอย่างไร" options={[{v:0,l:'0 = ไม่สามารถรับประทานอาหารได้เอง',warn:true},{v:1,l:'1 = รับประทานอาหารได้เองแต่ค่อนข้างลำบาก'},{v:2,l:'2 = รับประทานอาหารได้เอง / ไม่มีปัญหา'}]} val={mnaFull[7]} onChange={(v)=>{const n=[...mnaFull];n[7]=v;setMnaFull(n);}} />
+            </Section>
+            <Section title="ส่วนที่ 3: การประเมินตนเอง">
+              <RadioGroup question="ท่านคิดว่าตนเองมีภาวะโภชนาการเป็นอย่างไร" options={[{v:0,l:'0 = ขาดสารอาหาร',warn:true},{v:1,l:'1 = ไม่แน่ใจ'},{v:2,l:'2 = ไม่ขาดสารอาหาร'}]} val={mnaFull[8]} onChange={(v)=>{const n=[...mnaFull];n[8]=v;setMnaFull(n);}} />
+              <RadioGroup question="เมื่อเทียบกับคนในวัยเดียวกัน ท่านคิดว่าสุขภาพของตนเป็นอย่างไร" options={[{v:0,l:'0 = ด้อยกว่า',warn:true},{v:0.5,l:'0.5 = ไม่ทราบ'},{v:1,l:'1 = พอกัน'},{v:2,l:'2 = ดีกว่า'}]} val={mnaFull[9]} onChange={(v)=>{const n=[...mnaFull];n[9]=v;setMnaFull(n);}} />
+            </Section>
+            <Section title="ส่วนที่ 4: การวัดสัดส่วนร่างกาย">
+              <RadioGroup question="เส้นรอบวงแขน (Mid-arm circumference; MAC) มีค่ากี่เซนติเมตร" options={[{v:0,l:'0 = น้อยกว่า 21 ซม.',warn:true},{v:0.5,l:'0.5 = 21-22 ซม.'},{v:1,l:'1 = ตั้งแต่ 22 ซม. ขึ้นไป'}]} val={mnaFull[10]} onChange={(v)=>{const n=[...mnaFull];n[10]=v;setMnaFull(n);}} />
+              <RadioGroup question="เส้นรอบวงน่อง (Calf circumference; CC) มีค่ากี่เซนติเมตร" options={[{v:0,l:'0 = น้อยกว่า 31 ซม.',warn:true},{v:1,l:'1 = ตั้งแต่ 31 ซม. ขึ้นไป'}]} val={mnaFull[11]} onChange={(v)=>{const n=[...mnaFull];n[11]=v;setMnaFull(n);}} />
             </Section>
             <button onClick={handleNextMnaFull} style={{ width: '100%', padding: 14, borderRadius: 13, fontSize: 14, fontWeight: 700, background: `linear-gradient(135deg,${NUTRI_COLOR},#b45309)`, color: 'white', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(217, 119, 6, 0.3)' }}>บันทึกและดูผล →</button>
           </div>
