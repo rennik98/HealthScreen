@@ -312,6 +312,7 @@ export default function TMSEQuiz({ onBack, onComplete, patient }) {
   const [langS, setLangS] = useState(draft?.langS ?? { naming1:null, naming2:null, repeat:null, commands:Array(3).fill(null), read:null, copy:null, similarity:null });
   const [recS,  setRecS]  = useState(draft?.recS  ?? Array(3).fill(null));
   const [done,        setDone]        = useState(false);
+  const [fullscreen,  setFullscreen]  = useState(null);
   const [finalDuration, setFinalDuration] = useState(0);
   const timer = useTimer(true);
 
@@ -456,6 +457,54 @@ export default function TMSEQuiz({ onBack, onComplete, patient }) {
           <ActionBtn onClick={onBack} variant="primary">← กลับหน้าหลัก</ActionBtn>
         </div>
         <div style={{ textAlign:'center',fontSize:11,color:'var(--mint-muted)',padding:14,background:'white',borderTop:'1px solid var(--mint-border2)' }}>TMSE · สารศิริราช 45(6) มิถุนายน 2536</div>
+      </div>
+    );
+  }
+
+  /* ── Fullscreen: อ่านและทำตาม ── */
+  if (fullscreen === 'read') {
+    return (
+      <div style={{ position:'fixed', inset:0, zIndex:9999, display:'flex', flexDirection:'column', background:'#f8fafc' }}>
+        <div style={{ padding:'16px 24px', background:'white', borderBottom:'1px solid var(--mint-border)', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
+          <button onClick={() => setFullscreen(null)} style={{ background:'none', border:'none', color:'var(--mint-muted)', fontSize:16, fontWeight:700, cursor:'pointer' }}>✕ ปิด</button>
+          <span style={{ fontSize:16, fontWeight:800, color:'var(--mint-primary)' }}>5.5 อ่านและทำตาม</span>
+          <div style={{ width:60 }} />
+        </div>
+        <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:32, gap:32 }}>
+          <div style={{ textAlign:'center', fontSize:80, fontWeight:900, color:'var(--mint-text)', border:'2px solid var(--mint-border)', borderRadius:24, padding:'40px 80px', background:'white', letterSpacing:'0.06em', boxShadow:'0 8px 32px rgba(0,0,0,0.08)' }}>
+            หลับตา
+          </div>
+          <p style={{ fontSize:15, color:'var(--mint-muted)', textAlign:'center' }}>ให้ผู้ถูกทดสอบอ่านและทำตามคำสั่ง</p>
+          <div style={{ display:'flex', gap:16 }}>
+            <button onClick={() => { setLangS(s=>({...s, read:1})); setFullscreen(null); }} style={{ padding:'14px 32px', borderRadius:12, fontSize:16, fontWeight:800, background:'var(--mint-primary-xl)', border:'2px solid var(--mint-primary)', color:'var(--mint-primary)', cursor:'pointer' }}>✓ ทำได้</button>
+            <button onClick={() => { setLangS(s=>({...s, read:0})); setFullscreen(null); }} style={{ padding:'14px 32px', borderRadius:12, fontSize:16, fontWeight:800, background:'#fff1f1', border:'2px solid #fca5a5', color:'#ef4444', cursor:'pointer' }}>✗ ทำไม่ได้</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Fullscreen: วาดภาพตามตัวอย่าง ── */
+  if (fullscreen === 'draw') {
+    return (
+      <div style={{ position:'fixed', inset:0, zIndex:9999, display:'flex', flexDirection:'column', background:'#f8fafc' }}>
+        <div style={{ padding:'16px 24px', background:'white', borderBottom:'1px solid var(--mint-border)', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
+          <button onClick={() => setFullscreen(null)} style={{ background:'none', border:'none', color:'var(--mint-muted)', fontSize:16, fontWeight:700, cursor:'pointer' }}>✕ ยกเลิก</button>
+          <span style={{ fontSize:16, fontWeight:800, color:'var(--mint-primary)' }}>5.6 วาดภาพตามตัวอย่าง</span>
+          <div style={{ width:60 }} />
+        </div>
+        <div style={{ flex:1, padding:'24px', display:'flex', flexDirection:'column', width:'100%', margin:'0 auto', maxWidth:1000, overflowY:'auto' }}>
+          <div style={{ display:'flex', justifyContent:'center', marginBottom:16, flexShrink:0 }}>
+            <div style={{ textAlign:'center', background:'white', padding:'16px 32px', borderRadius:20, border:'1.5px solid var(--mint-border)', boxShadow:'0 4px 12px rgba(0,0,0,0.05)' }}>
+              <p style={{ fontSize:15, fontWeight:800, color:'var(--mint-text)', marginBottom:12 }}>วาดภาพให้เหมือนต้นแบบมากที่สุด</p>
+              <svg width="160" height="120" viewBox="0 0 130 100" style={{ border:'1.5px solid var(--mint-border)', borderRadius:12, background:'white', padding:4 }}>
+                <polygon points="65,8 118,48 12,48" fill="none" stroke="var(--mint-text2)" strokeWidth="2.5" strokeLinejoin="round"/>
+                <rect x="22" y="48" width="86" height="44" fill="none" stroke="var(--mint-text2)" strokeWidth="2.5"/>
+              </svg>
+            </div>
+          </div>
+          <DrawingCanvas width={560} height={400} onScoreSelect={(v) => { setLangS(s=>({...s, copy:v})); setFullscreen(null); }} />
+        </div>
       </div>
     );
   }
@@ -642,16 +691,47 @@ export default function TMSEQuiz({ onBack, onComplete, patient }) {
             </div>
 
             <div style={{ background:'var(--mint-surface2)',border:'1px solid var(--mint-border2)',borderRadius:12,padding:'12px 14px' }}>
-              <p style={{ fontSize:13,color:'var(--mint-text2)',fontWeight:500,marginBottom:8 }}>5.5 อ่านและทำตาม</p>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                <p style={{ fontSize:13,color:'var(--mint-text2)',fontWeight:500 }}>5.5 อ่านและทำตาม</p>
+                {langS.read === null ? (
+                  <button onClick={() => setFullscreen('read')} style={{ padding:'6px 14px', borderRadius:8, fontSize:12, fontWeight:700, background:'var(--mint-primary-xl)', border:'1.5px solid var(--mint-primary)', color:'var(--mint-primary)', cursor:'pointer', flexShrink:0 }}>
+                    🖥️ เริ่มทำ
+                  </button>
+                ) : (
+                  <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                    <span style={{ fontSize:13, fontWeight:800, color: langS.read === 1 ? '#10b981' : '#ef4444' }}>
+                      {langS.read === 1 ? '✓ ทำได้' : '✗ ทำไม่ได้'}
+                    </span>
+                    <button onClick={() => { setLangS(s=>({...s, read:null})); setFullscreen('read'); }} style={{ fontSize:11, color:'var(--mint-muted)', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>ทำใหม่</button>
+                  </div>
+                )}
+              </div>
               <div style={{ textAlign:'center',fontSize:26,fontWeight:900,color:'var(--mint-text)',border:'1.5px solid var(--mint-border)',borderRadius:12,padding:16,marginBottom:8,background:'white',letterSpacing:'0.08em' }}>
                 หลับตา
               </div>
-              <YN val={langS.read} onChange={v=>setLangS(s=>({...s,read:v}))} />
+              {langS.read === null && (
+                <p style={{ fontSize:11, color:'var(--mint-muted)', marginBottom:8 }}>กดปุ่ม "เริ่มทำ" เพื่อแสดงคำสั่งเต็มจอ</p>
+              )}
+              {langS.read === null && <YN val={langS.read} onChange={v=>setLangS(s=>({...s,read:v}))} />}
             </div>
 
             <div style={{ background:'var(--mint-surface2)',border:'1px solid var(--mint-border2)',borderRadius:12,padding:'12px 14px' }}>
-              <p style={{ fontSize:13,color:'var(--mint-text2)',fontWeight:500,marginBottom:10 }}>5.6 วาดภาพตามตัวอย่าง (2 คะแนน)</p>
-              <div style={{ display:'flex',justifyContent:'center',marginBottom:12 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+                <p style={{ fontSize:13,color:'var(--mint-text2)',fontWeight:500 }}>5.6 วาดภาพตามตัวอย่าง (2 คะแนน)</p>
+                {langS.copy === null ? (
+                  <button onClick={() => setFullscreen('draw')} style={{ padding:'6px 14px', borderRadius:8, fontSize:12, fontWeight:700, background:'var(--mint-primary-xl)', border:'1.5px solid var(--mint-primary)', color:'var(--mint-primary)', cursor:'pointer', flexShrink:0 }}>
+                    🖥️ เริ่มทำ
+                  </button>
+                ) : (
+                  <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                    <span style={{ fontSize:13, fontWeight:800, color: langS.copy===2?'var(--mint-primary)':langS.copy===1?'#92400e':'#ef4444' }}>
+                      {langS.copy===2?'✓✓ 2/2':langS.copy===1?'△ 1/2':'✗ 0/2'}
+                    </span>
+                    <button onClick={() => { setLangS(s=>({...s, copy:null})); setFullscreen('draw'); }} style={{ fontSize:11, color:'var(--mint-muted)', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>ทำใหม่</button>
+                  </div>
+                )}
+              </div>
+              <div style={{ display:'flex',justifyContent:'center',marginBottom:8 }}>
                 <div style={{ textAlign:'center' }}>
                   <p style={{ fontSize:11,color:'var(--mint-muted)',marginBottom:6 }}>ภาพตัวอย่าง</p>
                   <svg width="130" height="100" viewBox="0 0 130 100" style={{ border:'1.5px solid var(--mint-border)',borderRadius:12,background:'white',padding:4 }}>
@@ -660,20 +740,9 @@ export default function TMSEQuiz({ onBack, onComplete, patient }) {
                   </svg>
                 </div>
               </div>
-              <p style={{ fontSize:11,color:'var(--mint-muted)',marginBottom:10 }}>วาดภาพตามตัวอย่างด้านบน (สี่เหลี่ยมทับสามเหลี่ยมที่มีสองส่วนทับกัน)</p>
-              {langS.copy===null
-                ? <DrawingCanvas width={280} height={180} onScoreSelect={v=>setLangS(s=>({...s,copy:v}))} />
-                : (
-                  <div>
-                    <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',background:langS.copy===2?'var(--mint-primary-xl)':langS.copy===1?'#fef9c3':'#fff1f1',border:`1px solid ${langS.copy===2?'var(--mint-primary)':langS.copy===1?'#fcd34d':'#fca5a5'}`,borderRadius:10 }}>
-                      <span style={{ fontWeight:700,fontSize:14,color:langS.copy===2?'var(--mint-primary)':langS.copy===1?'#92400e':'#dc2626' }}>
-                        {langS.copy===2?'✓✓ 2 คะแนน (สมบูรณ์)':langS.copy===1?'△ 1 คะแนน (บางส่วน)':'✗ 0 คะแนน'}
-                      </span>
-                      <button onClick={()=>setLangS(s=>({...s,copy:null}))} style={{ fontSize:11,color:'var(--mint-muted)',background:'none',border:'none',cursor:'pointer' }}>แก้ไข</button>
-                    </div>
-                  </div>
-                )
-              }
+              {langS.copy === null && (
+                <p style={{ fontSize:11, color:'var(--mint-muted)' }}>กดปุ่ม "เริ่มทำ" เพื่อเปิดกระดานวาดรูปเต็มจอ</p>
+              )}
             </div>
 
             <div style={{ background:'var(--mint-surface2)',border:'1px solid var(--mint-border2)',borderRadius:12,padding:'12px 14px' }}>
