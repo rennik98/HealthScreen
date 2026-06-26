@@ -2,6 +2,8 @@
 
 **HealthScreen** is a comprehensive, interactive React-based web application designed for healthcare professionals to efficiently conduct geriatric health screenings. The application digitizes 14 validated clinical assessment tools based on the **Ministry of Public Health (MoPH), Thailand (2021)** guidelines.
 
+📖 **คู่มือการใช้งาน (ภาษาไทย)**: [docs/MANUAL.docx](docs/MANUAL.docx) (ไฟล์ Word พร้อมภาพหน้าจอจริง) · ต้นฉบับแก้ไขข้อความ: [docs/MANUAL.md](docs/MANUAL.md)
+
 
 ## ✨ Key Features
 
