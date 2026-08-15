@@ -53,15 +53,35 @@ export function toSheetRow(r) {
 
 const THAI_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
+/**
+ * แปลงวันเวลาให้เป็น epoch ms เพื่อใช้เรียง/กรอง — คืน undefined ถ้าอ่านไม่ออก
+ * รับได้ทั้ง ISO ที่ Sheets คืนมา และสตริงไทย พ.ศ. ที่แอปเขียนไปเอง
+ * ("28 มิถุนายน 2569 16:47" ซึ่ง new Date() แปลไม่ได้)
+ */
+export function parseThaiDatetime(raw) {
+  const s = String(raw ?? '').trim();
+  if (!s) return undefined;
+
+  const iso = new Date(s);
+  if (!isNaN(iso)) return iso.getTime();
+
+  const m = s.match(/^(\d{1,2})\s+(\S+)\s+(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (!m) return undefined;
+  const month = THAI_MONTHS.indexOf(m[2]);
+  if (month === -1) return undefined;
+  let year = Number(m[3]);
+  if (year >= 2400) year -= 543;   // พ.ศ. → ค.ศ.
+  return new Date(year, month, Number(m[1]), Number(m[4] ?? 0), Number(m[5] ?? 0)).getTime();
+}
+
 /** Sheets อาจคืนค่าเป็น Date (ISO) หรือสตริงไทยที่แอปเขียนไปเอง — ทำให้เป็นรูปแบบเดียวกัน */
 export function formatThaiDatetime(raw) {
   const s = String(raw ?? '');
   if (!s.trim()) return '';
-  const d = new Date(s);
-  if (isNaN(d)) return s;
-  let yr = d.getFullYear();
-  if (yr < 2500) yr += 543;
-  return `${d.getDate()} ${THAI_MONTHS[d.getMonth()]} ${yr} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const ms = parseThaiDatetime(s);
+  if (ms === undefined) return s;
+  const d = new Date(ms);
+  return `${d.getDate()} ${THAI_MONTHS[d.getMonth()]} ${d.getFullYear() + 543} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 /**
@@ -104,6 +124,8 @@ export function fromSheetRow(row) {
     impaired:   impairedCell !== '' ? impairedCell === 'ใช่' : legacyImpaired(resultText),
     resultText,
     datetime:   formatThaiDatetime(row[COL.datetime]),
+    // เก็บ epoch ไว้ด้วย ไม่งั้นเรียง/กรองตามวันที่ไม่ได้ (แถวจาก Sheets ไม่มี timestamp)
+    timestamp:  parseThaiDatetime(row[COL.datetime]),
     duration:   Number(row[COL.duration]) || 0,
     breakdown:  safeParseBreakdown(row[COL.breakdown]),
   };

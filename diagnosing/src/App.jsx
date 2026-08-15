@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { saveLocalResult, loadLocalResults } from './shared/quizStorage';
-import { toSheetRow, fromSheetRow, newResultId } from './shared/sheetSchema';
+import { toSheetRow, fromSheetRow, newResultId, parseThaiDatetime } from './shared/sheetSchema';
 import MiniCogQuiz from './MiniCogQuiz';
 import TMSEQuiz from './TMSEQuiz';
 import MoCAQuiz from './MoCAQuiz';
@@ -379,7 +379,7 @@ async function loadFromSheets() {
       hn:        rec.hn || localMatch?.hn || '',
       // แถวใหม่มี breakdown มาจาก Sheets แล้ว (ดูข้ามเครื่องได้) แถวเก่ายังต้องกู้จากในเครื่อง
       breakdown: Object.keys(rec.breakdown).length ? rec.breakdown : (localMatch?.breakdown ?? {}),
-      timestamp: localMatch?.timestamp,
+      timestamp: localMatch?.timestamp ?? rec.timestamp,
       mine:      !!localMatch,
     };
   });
@@ -408,7 +408,8 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
 
   const uniqueTypes = [...new Set(results.map(r => r.type))];
   const mineCount   = results.filter(r => r.mine).length;
-  const processedResults = results.map((r, i) => ({ ...r, originalIndex: i }));
+  // แถวจาก Sheets ไม่มี timestamp ติดมา — ถอดจากข้อความวันที่แทน เพื่อให้เรียง/กรองได้จริง
+  const processedResults = results.map((r, i) => ({ ...r, originalIndex: i, sortTime: r.timestamp ?? parseThaiDatetime(r.datetime) }));
 
   const filtered = processedResults.filter(r => {
     const matchName     = r.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -416,16 +417,21 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
     const matchImpaired = filterImpaired === 'all' || (filterImpaired === 'impaired' ? r.impaired : !r.impaired);
     const matchOwner    = filterOwner === 'all' || !!r.mine;
     let   matchDate     = true;
-    if (r.timestamp) {
-      if (dateFrom) matchDate = matchDate && r.timestamp >= new Date(dateFrom).getTime();
-      if (dateTo)   matchDate = matchDate && r.timestamp <= new Date(dateTo + 'T23:59:59').getTime();
+    if (r.sortTime != null) {
+      if (dateFrom) matchDate = matchDate && r.sortTime >= new Date(dateFrom).getTime();
+      if (dateTo)   matchDate = matchDate && r.sortTime <= new Date(dateTo + 'T23:59:59').getTime();
     }
     return matchName && matchType && matchImpaired && matchOwner && matchDate;
   });
 
   filtered.sort((a, b) => {
-    if (sortBy === 'date-desc') return b.originalIndex - a.originalIndex;
-    if (sortBy === 'date-asc')  return a.originalIndex - b.originalIndex;
+    if (sortBy === 'date-desc' || sortBy === 'date-asc') {
+      // อ่านวันที่ไม่ออก → ดันไปท้ายตารางเสมอ ไม่ปนกับรายการที่เรียงถูก
+      if (a.sortTime == null && b.sortTime == null) return b.originalIndex - a.originalIndex;
+      if (a.sortTime == null) return 1;
+      if (b.sortTime == null) return -1;
+      return sortBy === 'date-desc' ? b.sortTime - a.sortTime : a.sortTime - b.sortTime;
+    }
     if (sortBy === 'name-asc')  return a.name.localeCompare(b.name, 'th');
     if (sortBy === 'age-asc')   return (Number(a.age) || 0) - (Number(b.age) || 0);
     if (sortBy === 'age-desc')  return (Number(b.age) || 0) - (Number(a.age) || 0);
