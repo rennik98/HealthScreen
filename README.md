@@ -63,25 +63,27 @@ cd healthscreen
 npm install
 ```
 
-2. Google Sheets Integration
+### 2. Google Sheets Integration
 The app requires a Google Apps Script deployment to save data.
 
-Create a new Google Sheet.
+1. Create a new Google Sheet.
+2. Go to **Extensions → Apps Script** and paste the contents of [`apps-script/Code.gs`](apps-script/Code.gs).
+3. **Project Settings → Script Properties**: add `SPREADSHEET_ID` (and optionally `SHEET_NAME`, defaults to `Result`).
+4. **Deploy → New deployment → Web app**, set *Who has access* to **Anyone**, and copy the `/exec` URL.
 
-Go to Extensions > Apps Script.
+The script is deliberately schema-agnostic: it matches incoming JSON keys against the
+header row and appends any column it hasn't seen before. **Adding a screening tool or a
+new field never requires editing or redeploying it** — the schema lives entirely in
+[`diagnosing/src/shared/sheetSchema.js`](diagnosing/src/shared/sheetSchema.js).
 
-Paste the contents of your Code.gs into the editor.
-
-Add your Google Sheet ID to the Script Properties (Project Settings > Script Properties > Key: SPREADSHEET_ID).
-
-Click Deploy > New Deployment, select "Web app", set access to "Anyone", and copy the Web App URL.
-
-3. Environment Variables
-Create a .env file in the root directory and add your Google Apps Script URL:
+### 3. Environment Variables
+Create a `.env` file inside `diagnosing/` (copy `.env.example`) and add your Web App URL:
 
 ```bash
 VITE_SCRIPT_URL=your_google_apps_script_web_app_url_here
 ```
+
+`VITE_*` values are baked in at build time — restart the dev server (or rebuild) after changing them.
 4. Run the App
 Start the development server:
 ```bash

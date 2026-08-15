@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { saveLocalResult, loadLocalResults } from './shared/quizStorage';
+import { toSheetRow, fromSheetRow, newResultId } from './shared/sheetSchema';
 import MiniCogQuiz from './MiniCogQuiz';
 import TMSEQuiz from './TMSEQuiz';
 import MoCAQuiz from './MoCAQuiz';
@@ -345,49 +346,51 @@ const isConfigured = () => SCRIPT_URL !== '' && SCRIPT_URL !== 'YOUR_APPS_SCRIPT
 
 async function saveToSheets(record) {
   if (!isConfigured()) return { success: false, error: 'not configured' };
-  const res = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(record) });
+  // ส่ง object ที่ key เป็นชื่อหัวคอลัมน์ไปเลย — Apps Script จับคู่/สร้างคอลัมน์ให้เอง
+  // text/plain เพื่อเลี่ยง CORS preflight ที่ Apps Script ตอบไม่ได้
+  const res = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(toSheetRow(record)) });
   const text = await res.text();
   try { return JSON.parse(text); } catch { return { success: false, error: text }; }
 }
 
+// คีย์สำรองสำหรับรายการเก่าที่ยังไม่มี id
+const resultKey = (r) => [r.name, r.type, r.datetime].map(v => String(v ?? '').replace(/\s+/g, ' ').trim()).join('|');
+
 async function loadFromSheets() {
   const local = loadLocalResults();
-  if (!isConfigured()) return local;
+  // ยังไม่ได้ตั้ง SCRIPT_URL — แสดงผลที่บันทึกไว้ในเครื่องนี้แทน
+  if (!isConfigured()) return local.map(r => ({ ...r, mine: true }));
   const url = `${SCRIPT_URL}?t=${Date.now()}`;
   const res = await fetch(url, { redirect: 'follow' });
   const text = await res.text();
   let json;
   try { json = JSON.parse(text); } catch { throw new Error('Invalid response: ' + text.slice(0, 100)); }
   if (!json.success) throw new Error(json.error || 'Unknown error');
-  // doGet now returns objects keyed by column header — no fragile index mapping
-  return (json.data || []).map(row => {
-    const name = String(row['ชื่อ-นามสกุล'] ?? '');
-    const type = String(row['ประเภทแบบทดสอบ'] ?? '');
-    const localMatch = local.find(l => l.name === name && l.type === type);
-    const impairedText = String(row['การแปลผล'] ?? '');
-    const impaired = ['บกพร่อง','Impairment','พบปัญหา','ควรส่งต่อ','พบความเสี่ยง','ซึมเศร้า','เสี่ยงฆ่าตัวตาย','เสี่ยงหกล้ม','เสี่ยงต่อภาวะมวลกล้ามเนื้อ','ขาดสารอาหาร','ติดเตียง','ติดบ้าน','เปราะบาง','แนวโน้มภาวะสมองเสื่อม','สปสช. กลุ่ม'].some(k => impairedText.includes(k));
-    const datetimeRaw = String(row['วันที่/เวลา'] ?? '');
-    const d = new Date(datetimeRaw);
-    const datetime = (!isNaN(d) && datetimeRaw.trim()) ? (() => {
-      const mn = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-      let yr = d.getFullYear(); if (yr < 2500) yr += 543;
-      return `${d.getDate()} ${mn[d.getMonth()]} ${yr} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-    })() : datetimeRaw;
+  // doGet คืนแถวเป็น object ที่ key คือหัวคอลัมน์ — การแปลงทั้งหมดอยู่ใน sheetSchema.js
+  const localById  = new Map(local.filter(r => r.id).map(r => [r.id, r]));
+  const localByKey = new Map(local.map(r => [resultKey(r), r]));
+
+  const sheetRows = (json.data || []).map(row => {
+    const rec = fromSheetRow(row);
+    // จับคู่ด้วย id ก่อน (แม่นยำ) ถอยไปใช้ ชื่อ+แบบทดสอบ+วันเวลา เฉพาะรายการเก่าที่ไม่มี id
+    const localMatch = (rec.id && localById.get(rec.id)) || localByKey.get(resultKey(rec));
     return {
-      hn:         String(row['HN/รหัสผู้ป่วย'] ?? localMatch?.hn ?? ''),
-      name,
-      age:        row['อายุ'],
-      gender:     String(row['เพศ'] ?? '-'),
-      type,
-      totalScore: Number(row['คะแนนรวม']),
-      maxScore:   Number(row['คะแนนสูงสุด']),
-      impaired,
-      datetime,
-      duration:   Number(row['เวลาที่ใช้ (วินาที)']) || 0,
-      breakdown:  localMatch?.breakdown ?? {},
-      timestamp:  localMatch?.timestamp,
+      ...rec,
+      hn:        rec.hn || localMatch?.hn || '',
+      // แถวใหม่มี breakdown มาจาก Sheets แล้ว (ดูข้ามเครื่องได้) แถวเก่ายังต้องกู้จากในเครื่อง
+      breakdown: Object.keys(rec.breakdown).length ? rec.breakdown : (localMatch?.breakdown ?? {}),
+      timestamp: localMatch?.timestamp,
+      mine:      !!localMatch,
     };
   });
+
+  // ผลที่บันทึกในเครื่องแต่ยังไม่ขึ้น Sheets (เช่นตอนบันทึกแล้วเน็ตหลุด) — ต่อท้ายไว้ไม่ให้ตกหล่น
+  const sheetIds  = new Set(sheetRows.filter(r => r.id).map(r => r.id));
+  const sheetKeys = new Set(sheetRows.map(resultKey));
+  const localOnly = local
+    .filter(r => !(r.id && sheetIds.has(r.id)) && !sheetKeys.has(resultKey(r)))
+    .map(r => ({ ...r, mine: true, unsynced: true }));
+  return [...sheetRows, ...localOnly];
 }
 
 const TYPE_COLORS = { 'Mini-Cog': 'var(--mint-primary)', 'TMSE': 'var(--mint-blue)', 'MoCA': '#8b5cf6', 'MMSE (Mini-Mental State)': '#0d9488', 'Oral Health': '#0891b2', 'Eye Health': '#7c3aed', 'Bone and Joint': '#ea580c', 'Depression (2Q/9Q)': '#e11d48', 'Suicide Risk (8Q)': '#dc2626', 'TAI (ภาวะพึ่งพิง)': '#be185d', 'Fall Risk (TUGT)': '#059669', 'MNA (Malnutrition)': '#d97706', 'Modified MSRA-5': '#d97706', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#4f46e5', 'Frail Scale (ความเปราะบาง)': '#4f46e5' };
@@ -400,21 +403,24 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
   const [dateFrom,      setDateFrom]      = useState('');
   const [dateTo,        setDateTo]        = useState('');
   const [filterImpaired,setFilterImpaired]= useState('all');
+  const [filterOwner,   setFilterOwner]   = useState('all');
   const [detailResult,  setDetailResult]  = useState(null);
 
   const uniqueTypes = [...new Set(results.map(r => r.type))];
+  const mineCount   = results.filter(r => r.mine).length;
   const processedResults = results.map((r, i) => ({ ...r, originalIndex: i }));
 
   const filtered = processedResults.filter(r => {
     const matchName     = r.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchType     = filterType === 'All' || r.type === filterType;
     const matchImpaired = filterImpaired === 'all' || (filterImpaired === 'impaired' ? r.impaired : !r.impaired);
+    const matchOwner    = filterOwner === 'all' || !!r.mine;
     let   matchDate     = true;
     if (r.timestamp) {
       if (dateFrom) matchDate = matchDate && r.timestamp >= new Date(dateFrom).getTime();
       if (dateTo)   matchDate = matchDate && r.timestamp <= new Date(dateTo + 'T23:59:59').getTime();
     }
-    return matchName && matchType && matchImpaired && matchDate;
+    return matchName && matchType && matchImpaired && matchOwner && matchDate;
   });
 
   filtered.sort((a, b) => {
@@ -434,7 +440,7 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
         <div>
           <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--mint-text)' }}>ผลการทดสอบทั้งหมด</h2>
           <p style={{ fontSize: 14, color: 'var(--mint-muted)', marginTop: 4 }}>
-            {loading ? 'กำลังโหลดจาก Google Sheets…' : <> พบ <strong style={{ color: 'var(--mint-primary)' }}>{filtered.length}</strong> จากทั้งหมด {results.length} รายการ</>}
+            {loading ? 'กำลังโหลดจาก Google Sheets…' : <> พบ <strong style={{ color: 'var(--mint-primary)' }}>{filtered.length}</strong> จากทั้งหมด {results.length} รายการ · บันทึกจากเครื่องนี้ <strong style={{ color: 'var(--mint-primary)' }}>{mineCount}</strong> รายการ</>}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }} className="no-print">
@@ -447,6 +453,22 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
           </>}
         </div>
       </div>
+
+      {!loading && results.length > 0 && (
+        <div style={{ display: 'inline-flex', gap: 4, marginBottom: 12, padding: 4, background: 'var(--mint-surface2)', border: '1.5px solid var(--mint-border)', borderRadius: 14 }} className="no-print">
+          {[
+            { v: 'all',  label: '🌐 ผลทั้งหมด',  count: results.length },
+            { v: 'mine', label: '👤 ของฉัน',      count: mineCount },
+          ].map(o => {
+            const on = filterOwner === o.v;
+            return (
+              <button key={o.v} onClick={() => setFilterOwner(o.v)} style={{ padding: '8px 16px', borderRadius: 11, fontSize: 13, fontWeight: 700, border: 'none', background: on ? 'white' : 'transparent', color: on ? 'var(--mint-primary)' : 'var(--mint-muted)', boxShadow: on ? 'var(--shadow-sm)' : 'none', cursor: 'pointer', transition: 'all 0.15s' }}>
+                {o.label} <span style={{ fontWeight: 600, opacity: 0.7 }}>({o.count})</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {!loading && results.length > 0 && (
         <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }} className="no-print">
@@ -515,6 +537,7 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
                         onClick={e => { e.stopPropagation(); setSearchTerm(r.name); }}
                         title="คลิกเพื่อกรองผลของผู้ป่วยคนนี้"
                       >{r.name}</span>
+                      {r.mine && <span title={r.unsynced ? 'บันทึกในเครื่องนี้ · ยังไม่ขึ้น Google Sheets' : 'บันทึกจากเครื่องนี้'} style={{ marginLeft: 6, padding: '2px 7px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: r.unsynced ? '#fff7ed' : 'var(--mint-primary-xl)', color: r.unsynced ? '#b45309' : 'var(--mint-primary)', border: '1px solid ' + (r.unsynced ? '#fcd34d88' : 'var(--mint-border)'), whiteSpace: 'nowrap' }}>{r.unsynced ? '👤 ยังไม่ซิงก์' : '👤 ของฉัน'}</span>}
                       {r.hn && <span style={{ fontSize: 11, color: 'var(--mint-muted)', display: 'block' }}>HN: {r.hn}</span>}
                     </td>
                     <td style={{ padding: '11px 14px', color: 'var(--mint-text2)' }}>{r.age} ปี</td>
@@ -562,10 +585,13 @@ export default function App() {
   const showToast = (message, type = 'success') => setToast({ message, type });
 
   const loadResults = async () => {
-    if (!isConfigured()) return;
     setLoadingData(true);
     try { const rows = await loadFromSheets(); setAllResults(rows); }
-    catch (err) { showToast('ไม่สามารถโหลดข้อมูลจาก Google Sheets ได้: ' + err.message, 'error'); }
+    catch (err) {
+      // โหลดจาก Sheets ไม่ได้ — อย่างน้อยยังเห็นผลที่บันทึกไว้ในเครื่องนี้
+      setAllResults(loadLocalResults().map(r => ({ ...r, mine: true })));
+      showToast('ไม่สามารถโหลดข้อมูลจาก Google Sheets ได้: ' + err.message, 'error');
+    }
     finally { setLoadingData(false); }
   };
 
@@ -583,16 +609,16 @@ export default function App() {
     const now = new Date();
     const datetime = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' }) + ' ' + now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
     
-    const newRecord = { hn: patient?.hn ?? '', name: patient?.name ?? 'ไม่ระบุ', age: patient?.age ?? '-', gender: patient?.gender ?? '-', type: scoreData.type, totalScore: scoreData.totalScore, maxScore: scoreData.maxScore, impaired: scoreData.impaired, breakdown: scoreData.breakdown ?? {}, duration: scoreData.duration ?? 0, datetime, resultText: scoreData.resultText, timestamp: now.getTime() };
+    const newRecord = { id: newResultId(), hn: patient?.hn ?? '', name: patient?.name ?? 'ไม่ระบุ', age: patient?.age ?? '-', gender: patient?.gender ?? '-', type: scoreData.type, totalScore: scoreData.totalScore, maxScore: scoreData.maxScore, impaired: scoreData.impaired, breakdown: scoreData.breakdown ?? {}, duration: scoreData.duration ?? 0, datetime, resultText: scoreData.resultText, timestamp: now.getTime() };
     saveLocalResult(newRecord);
     setPendingResult({ ...scoreData, datetime });
     setQuiz(null);
     setSaving(true);
     try {
       const res = await saveToSheets(newRecord);
-      if (res.success) { setAllResults(prev => [...prev, newRecord]); showToast('บันทึกลง Google Sheets สำเร็จ ✅'); }
+      if (res.success) { setAllResults(prev => [...prev, { ...newRecord, mine: true }]); showToast('บันทึกลง Google Sheets สำเร็จ ✅'); }
       else throw new Error(res.error || 'save failed');
-    } catch (err) { setAllResults(prev => [...prev, newRecord]); showToast('บันทึกไม่สำเร็จ — ตรวจสอบ SCRIPT_URL', 'error'); } 
+    } catch (err) { setAllResults(prev => [...prev, { ...newRecord, mine: true, unsynced: true }]); showToast('บันทึกไม่สำเร็จ — ตรวจสอบ SCRIPT_URL', 'error'); }
     finally { setSaving(false); }
   };
 
