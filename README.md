@@ -1,13 +1,13 @@
 # 🩺 HealthScreen: Geriatric Clinical Assessment Tool
 
-**HealthScreen** is a comprehensive, interactive React-based web application designed for healthcare professionals to efficiently conduct geriatric health screenings. The application digitizes 14 validated clinical assessment tools based on the **Ministry of Public Health (MoPH), Thailand (2021)** guidelines.
+**HealthScreen** is a comprehensive, interactive React-based web application designed for healthcare professionals to efficiently conduct geriatric health screenings. The application digitizes 15 validated clinical assessment tools based on the **Ministry of Public Health (MoPH), Thailand (2021)** guidelines.
 
 📖 **คู่มือการใช้งาน (ภาษาไทย)**: [docs/MANUAL.docx](docs/MANUAL.docx) (ไฟล์ Word พร้อมภาพหน้าจอจริง) · ต้นฉบับแก้ไขข้อความ: [docs/MANUAL.md](docs/MANUAL.md)
 
 
 ## ✨ Key Features
 
-* **Comprehensive Assessment Suite**: 14 digitized screening tools covering Cognitive Function, Nutrition, Functional Abilities, General Health, Geriatric Syndromes, and Mental Health.
+* **Comprehensive Assessment Suite**: 15 digitized screening tools covering Cognitive Function, Nutrition, Functional Abilities, General Health, Geriatric Syndromes, and Mental Health.
 * **Interactive UI**: 
   * 🎨 **Digital Drawing Canvas**: Built-in full-screen canvas for visual tests like Clock Drawing (Mini-Cog/MoCA), Intersecting Pentagons (MMSE), and Cube Copying.
   * ⏱️ **Integrated Stopwatch**: Built-in timer for the Timed Up and Go Test (TUGT).
@@ -43,6 +43,7 @@
 **❤️‍🩹 Mental Health**
 * **Depression**: 2Q (Screening) & 9Q (Severity).
 * **Suicide Risk**: 8Q.
+* **TAI** (Typology of Aged with Illustration): 4-domain dependency screening classifying into 9 subgroups (B5–B3 / C4–C2 / I3–I1) mapped to NHSO long-term care groups 1–4.
 
 ## 🚀 Tech Stack
 

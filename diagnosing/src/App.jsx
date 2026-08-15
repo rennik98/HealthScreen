@@ -9,6 +9,7 @@ import EyeHealthQuiz from './EyeHealthQuiz';
 import BoneJointQuiz from './BoneJointQuiz';
 import DepressionQuiz from './DepressionQuiz';
 import SuicideRiskQuiz from './SuicideRiskQuiz';
+import TAIQuiz from './TAIQuiz';
 import FallRiskQuiz from './FallRiskQuiz';
 import NutritionQuiz from './NutritionQuiz';
 import FunctionQuiz from './FunctionQuiz';
@@ -132,6 +133,7 @@ const PatientForm = ({ quizType, onConfirm, onCancel, prefill }) => {
     knee:    { label: 'การคัดกรองข้อเข่าเสื่อม', color: '#ea580c', grad: 'linear-gradient(135deg, #ea580c, #c2410c)', icon: '🦵', bg: '#fff7ed' },
     depress: { label: 'ภาวะซึมเศร้า (2Q/9Q)',color: '#e11d48',            grad: 'linear-gradient(135deg, #e11d48, #be123c)',                              icon: '❤️‍🩹', bg: '#fff1f2' },
     suicide: { label: 'ความเสี่ยงฆ่าตัวตาย (8Q)',color: '#dc2626',        grad: 'linear-gradient(135deg, #dc2626, #991b1b)',                              icon: '🆘', bg: '#fef2f2' },
+    tai:     { label: 'ภาวะพึ่งพิง (TAI)',  color: '#be185d',             grad: 'linear-gradient(135deg, #be185d, #9d174d)',                              icon: '🧓', bg: '#fdf2f8' },
     fall:    { label: 'ภาวะหกล้ม (TUGT)',  color: '#059669',             grad: 'linear-gradient(135deg, #059669, #047857)',                              icon: '🚶‍♂️', bg: '#ecfdf5' },
     mna:     { label: 'โภชนาการ (MNA)',    color: '#d97706',             grad: 'linear-gradient(135deg, #d97706, #b45309)',                              icon: '🥗', bg: '#fffbeb' },
     msra:    { label: 'มวลกล้ามเนื้อ (MSRA)',color: '#d97706',             grad: 'linear-gradient(135deg, #d97706, #b45309)',                              icon: '💪', bg: '#fffbeb' },
@@ -211,6 +213,7 @@ const ResultSummaryModal = ({ result, patient, onClose, onViewAll, onContinue })
     'Bone and Joint':    { color: '#ea580c',             grad: 'linear-gradient(135deg, #ea580c, #c2410c)',                              icon: '🦴' },
     'Depression (2Q/9Q)':{ color: '#e11d48',             grad: 'linear-gradient(135deg, #e11d48, #be123c)',                              icon: '❤️‍🩹' },
     'Suicide Risk (8Q)': { color: '#dc2626',             grad: 'linear-gradient(135deg, #dc2626, #991b1b)',                              icon: '🆘' },
+    'TAI (ภาวะพึ่งพิง)':  { color: '#be185d',             grad: 'linear-gradient(135deg, #be185d, #9d174d)',                              icon: '🧓' },
     'Fall Risk (TUGT)':  { color: '#059669',             grad: 'linear-gradient(135deg, #059669, #047857)',                              icon: '🚶‍♂️' },
     'MNA (Malnutrition)':{ color: '#d97706',             grad: 'linear-gradient(135deg, #d97706, #b45309)',                              icon: '🥗' },
     'Modified MSRA-5':   { color: '#d97706',             grad: 'linear-gradient(135deg, #d97706, #b45309)',                              icon: '💪' },
@@ -362,7 +365,7 @@ async function loadFromSheets() {
     const type = String(row['ประเภทแบบทดสอบ'] ?? '');
     const localMatch = local.find(l => l.name === name && l.type === type);
     const impairedText = String(row['การแปลผล'] ?? '');
-    const impaired = ['บกพร่อง','Impairment','พบปัญหา','ควรส่งต่อ','พบความเสี่ยง','ซึมเศร้า','เสี่ยงฆ่าตัวตาย','เสี่ยงหกล้ม','เสี่ยงต่อภาวะมวลกล้ามเนื้อ','ขาดสารอาหาร','ติดเตียง','ติดบ้าน','เปราะบาง','แนวโน้มภาวะสมองเสื่อม'].some(k => impairedText.includes(k));
+    const impaired = ['บกพร่อง','Impairment','พบปัญหา','ควรส่งต่อ','พบความเสี่ยง','ซึมเศร้า','เสี่ยงฆ่าตัวตาย','เสี่ยงหกล้ม','เสี่ยงต่อภาวะมวลกล้ามเนื้อ','ขาดสารอาหาร','ติดเตียง','ติดบ้าน','เปราะบาง','แนวโน้มภาวะสมองเสื่อม','สปสช. กลุ่ม'].some(k => impairedText.includes(k));
     const datetimeRaw = String(row['วันที่/เวลา'] ?? '');
     const d = new Date(datetimeRaw);
     const datetime = (!isNaN(d) && datetimeRaw.trim()) ? (() => {
@@ -387,8 +390,8 @@ async function loadFromSheets() {
   });
 }
 
-const TYPE_COLORS = { 'Mini-Cog': 'var(--mint-primary)', 'TMSE': 'var(--mint-blue)', 'MoCA': '#8b5cf6', 'MMSE (Mini-Mental State)': '#0d9488', 'Oral Health': '#0891b2', 'Eye Health': '#7c3aed', 'Bone and Joint': '#ea580c', 'Depression (2Q/9Q)': '#e11d48', 'Suicide Risk (8Q)': '#dc2626', 'Fall Risk (TUGT)': '#059669', 'MNA (Malnutrition)': '#d97706', 'Modified MSRA-5': '#d97706', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#4f46e5', 'Frail Scale (ความเปราะบาง)': '#4f46e5' };
-const TYPE_BG = { 'Mini-Cog': 'var(--mint-primary-xl)', 'TMSE': 'var(--mint-blue-xl)', 'MoCA': '#f3e8ff', 'MMSE (Mini-Mental State)': '#f0fdfa', 'Oral Health': '#ecfeff', 'Eye Health': '#f5f3ff', 'Bone and Joint': '#fff7ed', 'Depression (2Q/9Q)': '#fff1f2', 'Suicide Risk (8Q)': '#fef2f2', 'Fall Risk (TUGT)': '#ecfdf5', 'MNA (Malnutrition)': '#fffbeb', 'Modified MSRA-5': '#fffbeb', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#e0e7ff', 'Frail Scale (ความเปราะบาง)': '#e0e7ff' };
+const TYPE_COLORS = { 'Mini-Cog': 'var(--mint-primary)', 'TMSE': 'var(--mint-blue)', 'MoCA': '#8b5cf6', 'MMSE (Mini-Mental State)': '#0d9488', 'Oral Health': '#0891b2', 'Eye Health': '#7c3aed', 'Bone and Joint': '#ea580c', 'Depression (2Q/9Q)': '#e11d48', 'Suicide Risk (8Q)': '#dc2626', 'TAI (ภาวะพึ่งพิง)': '#be185d', 'Fall Risk (TUGT)': '#059669', 'MNA (Malnutrition)': '#d97706', 'Modified MSRA-5': '#d97706', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#4f46e5', 'Frail Scale (ความเปราะบาง)': '#4f46e5' };
+const TYPE_BG = { 'Mini-Cog': 'var(--mint-primary-xl)', 'TMSE': 'var(--mint-blue-xl)', 'MoCA': '#f3e8ff', 'MMSE (Mini-Mental State)': '#f0fdfa', 'Oral Health': '#ecfeff', 'Eye Health': '#f5f3ff', 'Bone and Joint': '#fff7ed', 'Depression (2Q/9Q)': '#fff1f2', 'Suicide Risk (8Q)': '#fef2f2', 'TAI (ภาวะพึ่งพิง)': '#fdf2f8', 'Fall Risk (TUGT)': '#ecfdf5', 'MNA (Malnutrition)': '#fffbeb', 'Modified MSRA-5': '#fffbeb', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#e0e7ff', 'Frail Scale (ความเปราะบาง)': '#e0e7ff' };
 
 const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
   const [searchTerm,    setSearchTerm]    = useState('');
@@ -609,6 +612,7 @@ export default function App() {
   if (quiz === 'knee')    return <BoneJointQuiz tool="KNEE" patient={patient} onBack={handleBack} onComplete={handleComplete} />;
   if (quiz === 'depress') return <DepressionQuiz patient={patient} onBack={handleBack} onComplete={handleComplete} />;
   if (quiz === 'suicide') return <SuicideRiskQuiz patient={patient} onBack={handleBack} onComplete={handleComplete} />;
+  if (quiz === 'tai')     return <TAIQuiz      patient={patient} onBack={handleBack} onComplete={handleComplete} />;
   if (quiz === 'fall')    return <FallRiskQuiz   patient={patient} onBack={handleBack} onComplete={handleComplete} />;
   if (quiz === 'mna')     return <NutritionQuiz tool="MNA" patient={patient} onBack={handleBack} onComplete={handleComplete} />;
   if (quiz === 'msra')    return <NutritionQuiz tool="MSRA5" patient={patient} onBack={handleBack} onComplete={handleComplete} />;
@@ -642,6 +646,7 @@ export default function App() {
   const mentalTests = [
     { key: 'depress', icon: '❤️‍🩹', title: 'ภาวะซึมเศร้า (2Q/9Q)', sub: 'คัดกรองด้วย 2Q และประเมินต่อด้วย 9Q', badge: '2Q, 9Q', bColor: '#e11d48', bBg: '#fff1f2' },
     { key: 'suicide', icon: '🆘', title: 'ความเสี่ยงฆ่าตัวตาย', sub: 'ประเมินความเสี่ยงฆ่าตัวตาย (8Q)', badge: '8Q', bColor: '#dc2626', bBg: '#fef2f2' },
+    { key: 'tai', icon: '🧓', title: 'ภาวะพึ่งพิง (TAI)', sub: 'ประเมิน 4 ด้าน จัดกลุ่ม B/C/I และกลุ่ม สปสช.', badge: 'TAI', bColor: '#be185d', bBg: '#fdf2f8' },
   ];
 
   const CATEGORIES = [
@@ -650,7 +655,7 @@ export default function App() {
     { id: 'fun', icon: '🛌', title: 'สมรรถนะผู้สูงอายุเพื่อการดูแล', sub: 'ADL กิจวัตรประจำวัน และความเปราะบาง', count: functionTests.length, color: '#4f46e5', bg: '#e0e7ff', tests: functionTests },
     { id: 'gen', icon: '🏥', title: 'สุขภาพทั่วไป', sub: 'ช่องปาก สายตา กระดูกและข้อ', count: healthTests.length, color: '#0891b2', bg: '#ecfeff', tests: healthTests },
     { id: 'syn', icon: '🚶‍♂️', title: 'กลุ่มอาการในผู้สูงอายุ', sub: 'แบบคัดกรองความเสี่ยงหกล้ม (TUGT)', count: syndromeTests.length, color: '#059669', bg: '#ecfdf5', tests: syndromeTests },
-    { id: 'men', icon: '❤️‍🩹', title: 'สุขภาพจิต', sub: 'ภาวะซึมเศร้าและความเสี่ยงฆ่าตัวตาย', count: mentalTests.length, color: '#e11d48', bg: '#fff1f2', tests: mentalTests },
+    { id: 'men', icon: '❤️‍🩹', title: 'สุขภาพจิต', sub: 'ภาวะซึมเศร้า ฆ่าตัวตาย และภาวะพึ่งพิง', count: mentalTests.length, color: '#e11d48', bg: '#fff1f2', tests: mentalTests },
   ];
 
   return (
@@ -930,6 +935,27 @@ export default function App() {
                 <ScoreRow label="9 - 16 คะแนน" val="เสี่ยงฆ่าตัวตายระดับปานกลาง" color="#991b1b" />
                 <ScoreRow label="≥ 17 คะแนน" val="เสี่ยงฆ่าตัวตายระดับรุนแรง" color="#7f1d1d" />
               </div>
+            </CriteriaBlock>
+
+            <CriteriaBlock title="ภาวะพึ่งพิง (TAI: Typology of Aged with Illustration)" color="#be185d">
+              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 8 }}>
+                ประเมินความสามารถในการทำกิจกรรม 4 ด้าน ได้แก่ <strong>การเคลื่อนที่ (Motility), สุขภาพจิตและสติปัญญา (Mental), การกินอาหาร (Feeding)</strong> และ <strong>การใช้ห้องน้ำ (Toilet)</strong> แต่ละด้านแบ่งเป็น 6 ระดับ (0 = ทำได้น้อยที่สุด ถึง 5 = ทำได้มากที่สุด) <strong>คะแนนรวม 0 - 20 คะแนน</strong>
+              </p>
+              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 14 }}>
+                การแปลผล<strong>ไม่ได้ใช้คะแนนรวม</strong> แต่ใช้การจัดกลุ่มเป็น 3 กลุ่มใหญ่ 9 กลุ่มย่อย ดังนี้
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10, marginBottom: 14 }}>
+                <ScoreRow label="B5 (เคลื่อนที่ได้ ไม่สับสน)" val="มีความผิดปกติน้อยมากหรือปกติ" color="#be185d" />
+                <ScoreRow label="B4 (เคลื่อนที่ได้ ไม่สับสน)" val="มีปัญหาการกินและการขับถ่ายเล็กน้อย" color="#be185d" />
+                <ScoreRow label="B3 (เคลื่อนที่ได้ ไม่สับสน)" val="มีปัญหาการกินและการขับถ่ายอย่างมาก" color="#b45309" />
+                <ScoreRow label="C4 (เคลื่อนที่ได้ แต่สับสน)" val="มีปัญหาสุขภาพจิต การกินและการขับถ่ายเล็กน้อย" color="#b45309" />
+                <ScoreRow label="C3 (เคลื่อนที่ได้ แต่สับสน)" val="มีปัญหาสุขภาพจิต การกิน และการขับถ่าย" color="#dc2626" />
+                <ScoreRow label="C2 (เคลื่อนที่ได้ แต่สับสน)" val="มีปัญหาสุขภาพจิต การกิน และการขับถ่าย อย่างมาก" color="#dc2626" />
+                <ScoreRow label="I3 (ติดเตียง)" val="มีปัญหาการเคลื่อนที่" color="#b45309" />
+                <ScoreRow label="I2 (ติดเตียง)" val="มีปัญหาการเคลื่อนที่และการกินอาหาร" color="#dc2626" />
+                <ScoreRow label="I1 (ติดเตียง)" val="มีปัญหาการเคลื่อนที่และการกินอาหารอย่างมาก" color="#991b1b" />
+              </div>
+              <WarnBadge>กลุ่มภาวะพึ่งพิง สปสช.: B3 = กลุ่ม 1 · C2 - C4 = กลุ่ม 2 · I3 = กลุ่ม 3 · I1 - I2 = กลุ่ม 4 (B4 - B5 ไม่เข้าเกณฑ์ภาวะพึ่งพิง)</WarnBadge>
             </CriteriaBlock>
 
           </div>
