@@ -1,0 +1,87 @@
+/**
+ * ทดสอบ Code.gs โดย "ไม่ต้อง Deploy" และ "ไม่แตะชีทจริง"
+ *
+ * วิธีใช้
+ *   1. เพิ่มไฟล์นี้ในโปรเจกต์ Apps Script (File → + → Script → ตั้งชื่อ Test)
+ *   2. เลือกฟังก์ชัน runSelfTest แล้วกด Run
+ *   3. ดูผลที่ View → Logs (Ctrl/Cmd + Enter)
+ *
+ * มันจะสร้างชีทชั่วคราวชื่อ SELFTEST_<เวลา> ทดสอบ แล้วลบทิ้งพร้อมคืนค่า
+ * SHEET_NAME เดิมให้อัตโนมัติ (อยู่ใน finally จึงคืนค่าแม้เทสต์จะพัง)
+ *
+ * ผ่านหมดแล้วจะลบไฟล์นี้ทิ้งก็ได้ ไม่มีผลต่อการทำงานจริง
+ */
+
+function runSelfTest() {
+  var props = PropertiesService.getScriptProperties();
+  var ssId = props.getProperty('SPREADSHEET_ID');
+  if (!ssId) throw new Error('ยังไม่ได้ตั้ง Script Property: SPREADSHEET_ID');
+
+  var originalName = props.getProperty('SHEET_NAME');
+  var tmpName = 'SELFTEST_' + Date.now();
+  var ss = SpreadsheetApp.openById(ssId);
+  var results = [];
+  var check = function (name, ok) { results.push((ok ? '✅ ' : '❌ ') + name); };
+
+  try {
+    props.setProperty('SHEET_NAME', tmpName);   // getSheet_() จะสร้างชีทนี้ให้เอง
+
+    // 1. ชีทว่าง ต้องได้ data: []
+    var empty = JSON.parse(doGet().getContent());
+    check('ชีทว่างคืน data ว่าง', empty.success === true && empty.data.length === 0);
+
+    // 2. บันทึก 1 รายการ แล้วอ่านกลับต้องตรง
+    var rec = {
+      'ID': 'test-0001',
+      'ชื่อ-นามสกุล': 'ทดสอบ ระบบ',
+      'ประเภทแบบทดสอบ': 'TAI (ภาวะพึ่งพิง)',
+      'คะแนนรวม': 14,
+      'พบความเสี่ยง': 'ใช่',
+      'รายละเอียด (JSON)': '{"TAI กลุ่ม":"C3"}'
+    };
+    var posted = JSON.parse(post_(rec).getContent());
+    check('doPost สำเร็จ', posted.success === true);
+
+    var after = JSON.parse(doGet().getContent());
+    check('อ่านกลับได้ 1 แถว', after.data.length === 1);
+    check('ค่าตรงกับที่ส่งไป',
+      after.data[0]['ID'] === 'test-0001' &&
+      after.data[0]['ชื่อ-นามสกุล'] === 'ทดสอบ ระบบ' &&
+      after.data[0]['คะแนนรวม'] === 14 &&
+      after.data[0]['พบความเสี่ยง'] === 'ใช่');
+    check('JSON breakdown ไม่ถูกดัดแปลง',
+      after.data[0]['รายละเอียด (JSON)'] === '{"TAI กลุ่ม":"C3"}');
+
+    // 3. ส่งฟิลด์ที่ยังไม่มีคอลัมน์ → ต้องสร้างคอลัมน์ให้เอง (หัวใจของ write-once)
+    var sh = ss.getSheetByName(tmpName);
+    var colsBefore = sh.getLastColumn();
+    var rec2 = {};
+    for (var k in rec) rec2[k] = rec[k];
+    rec2['ID'] = 'test-0002';
+    rec2['ผู้ประเมิน'] = 'พยาบาล ก';                 // ฟิลด์ใหม่ที่ไม่เคยมี
+    post_(rec2);
+
+    var after2 = JSON.parse(doGet().getContent());
+    check('คอลัมน์ใหม่ถูกสร้างอัตโนมัติ', sh.getLastColumn() === colsBefore + 1);
+    check('แถวใหม่มีค่าฟิลด์ใหม่', after2.data[1]['ผู้ประเมิน'] === 'พยาบาล ก');
+    check('แถวเก่าไม่พังหลังเพิ่มคอลัมน์',
+      after2.data[0]['ชื่อ-นามสกุล'] === 'ทดสอบ ระบบ' && after2.data[0]['ผู้ประเมิน'] === '');
+
+    // 4. ข้อมูลเสียต้องคืน error ไม่ใช่ throw ออกไป
+    var bad = JSON.parse(doPost({ postData: { contents: 'ไม่ใช่ json' } }).getContent());
+    check('ข้อมูลพังคืน success:false', bad.success === false);
+
+  } finally {
+    if (originalName === null) props.deleteProperty('SHEET_NAME');
+    else props.setProperty('SHEET_NAME', originalName);
+    var tmp = ss.getSheetByName(tmpName);
+    if (tmp) ss.deleteSheet(tmp);
+  }
+
+  var failed = results.filter(function (r) { return r.indexOf('❌') === 0; }).length;
+  Logger.log(results.join('\n') + '\n\n' + (results.length - failed) + ' passed, ' + failed + ' failed');
+}
+
+function post_(obj) {
+  return doPost({ postData: { contents: JSON.stringify(obj) } });
+}
