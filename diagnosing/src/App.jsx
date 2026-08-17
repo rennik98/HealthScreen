@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { saveLocalResult, loadLocalResults } from './shared/quizStorage';
 import { toSheetPayload, fromSheetRow, newResultId, parseThaiDatetime, COL as SHEET_COL } from './shared/sheetSchema';
-import { ChevronRight, Home, ClipboardList, BookOpen } from 'lucide-react';
+import { ChevronRight, Home, ClipboardList, BookOpen, RefreshCw, UploadCloud, Printer, Download, Search, SlidersHorizontal, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { CategoryIcon, TestIcon } from './shared/icons';
+import CriteriaPage from './CriteriaPage';
 import { text, radius, shadow, ui, palette, clamp } from './shared/theme';
 import { useIsCompact } from './shared/useMediaQuery';
 
@@ -102,28 +103,8 @@ const TestCard = ({ testKey, title, sub, badge, pal, onClick }) => (
   </button>
 );
 
-const CriteriaBlock = ({ title, color, children }) => (
-  <div style={{ background: 'white', border: `1.5px solid ${color}33`, borderRadius: 22, padding: '24px 20px', boxShadow: 'var(--shadow-sm)', marginBottom: 16 }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-      <div style={{ width: 5, height: 26, borderRadius: 3, background: color, flexShrink: 0 }} />
-      <h3 style={{ fontSize: 17, fontWeight: 800, color }}>{title}</h3>
-    </div>
-    {children}
-  </div>
-);
 
-const ScoreRow = ({ label, val, color }) => (
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--mint-surface2)', border: '1px solid var(--mint-border2)', borderRadius: 10 }}>
-    <span style={{ fontSize: 13, color: 'var(--mint-text2)' }}>{label}</span>
-    <span style={{ fontSize: 13, fontWeight: 800, color }}>{val}</span>
-  </div>
-);
 
-const WarnBadge = ({ children }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#fff7ed', border: '1px solid #fcd34d55', borderRadius: 10, marginTop: 12 }}>
-    <span style={{ fontSize: 14 }}>⚠️</span><p style={{ fontSize: 13, color: '#92400e' }}>{children}</p>
-  </div>
-);
 
 const Spinner = ({ size = 20, color = 'var(--mint-primary)' }) => (
   <span style={{ display: 'inline-block', width: size, height: size, border: `3px solid ${color}33`, borderTop: `3px solid ${color}`, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
@@ -437,6 +418,78 @@ async function loadFromSheets() {
 const TYPE_COLORS = { 'Mini-Cog': 'var(--mint-primary)', 'TMSE': 'var(--mint-blue)', 'MoCA': '#8b5cf6', 'MMSE (Mini-Mental State)': '#0d9488', 'Oral Health': '#0891b2', 'Eye Health': '#7c3aed', 'Bone and Joint': '#ea580c', 'Depression (2Q/9Q)': '#e11d48', 'Suicide Risk (8Q)': '#dc2626', 'TAI (ภาวะพึ่งพิง)': '#be185d', 'Fall Risk (TUGT)': '#059669', 'MNA (Malnutrition)': '#d97706', 'Modified MSRA-5': '#d97706', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#4f46e5', 'Frail Scale (ความเปราะบาง)': '#4f46e5' };
 const TYPE_BG = { 'Mini-Cog': 'var(--mint-primary-xl)', 'TMSE': 'var(--mint-blue-xl)', 'MoCA': '#f3e8ff', 'MMSE (Mini-Mental State)': '#f0fdfa', 'Oral Health': '#ecfeff', 'Eye Health': '#f5f3ff', 'Bone and Joint': '#fff7ed', 'Depression (2Q/9Q)': '#fff1f2', 'Suicide Risk (8Q)': '#fef2f2', 'TAI (ภาวะพึ่งพิง)': '#fdf2f8', 'Fall Risk (TUGT)': '#ecfdf5', 'MNA (Malnutrition)': '#fffbeb', 'Modified MSRA-5': '#fffbeb', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#e0e7ff', 'Frail Scale (ความเปราะบาง)': '#e0e7ff' };
 
+/** ผู้ใช้มักพิมพ์ HN มาพร้อมคำนำหน้าอยู่แล้ว ("HN-00123") เติมซ้ำจะได้ "HN HN-00123" */
+const fmtHN = (hn) => `HN ${String(hn).replace(/^\s*HN[\s:-]*/i, '')}`;
+
+const fmtDuration = (sec) => sec > 0
+  ? `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`
+  : '—';
+
+/** แบบทดสอบที่ไม่มีคะแนนเต็มให้เทียบ จึงแสดงเป็น — แทนตัวเลข/เลข */
+const noScoreMax = (type) => type === 'Bone and Joint' || type.includes('Depression') || type.includes('Suicide') || type.includes('MSRA');
+
+const TypeChip = ({ type }) => (
+  <span style={{ padding: '4px 10px', borderRadius: radius.pill, ...text.label, whiteSpace: 'nowrap',
+    background: TYPE_BG[type] || ui.surface2, color: TYPE_COLORS[type] || ui.muted }}>{type}</span>
+);
+
+const StatusChip = ({ impaired }) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: radius.pill, ...text.label, whiteSpace: 'nowrap',
+    background: impaired ? ui.warnBg : ui.okBg, color: impaired ? ui.warn : ui.ok,
+    border: `1px solid ${impaired ? '#f3d19a' : '#a3ddc8'}` }}>
+    {impaired ? <AlertTriangle size={13} strokeWidth={2.4} /> : <CheckCircle2 size={13} strokeWidth={2.4} />}
+    {impaired ? 'พบปัญหา' : 'ปกติ'}
+  </span>
+);
+
+const ScoreCell = ({ r }) => (
+  <span style={{ ...text.h3, color: r.impaired ? ui.warn : (TYPE_COLORS[r.type] || 'var(--mint-primary-d)') }}>
+    {noScoreMax(r.type) ? '—' : r.totalScore}
+    {!noScoreMax(r.type) && r.type !== 'Fall Risk (TUGT)' && <span style={{ ...text.small, fontWeight: 400, color: ui.muted }}>/{r.maxScore}</span>}
+    {r.type === 'Fall Risk (TUGT)' && <span style={{ ...text.small, fontWeight: 400, color: ui.muted }}> วิ.</span>}
+  </span>
+);
+
+/** ป้ายบอกว่ารายการนี้บันทึกจากเครื่องนี้ และซิงก์ขึ้น Sheets แล้วหรือยัง */
+const OwnerChip = ({ r }) => r.mine ? (
+  <span title={r.unsynced ? 'บันทึกในเครื่องนี้ · ยังไม่ขึ้น Google Sheets' : 'บันทึกจากเครื่องนี้'}
+    style={{ marginLeft: 6, padding: '2px 8px', borderRadius: radius.pill, ...text.label, whiteSpace: 'nowrap',
+      background: r.unsynced ? ui.warnBg : 'var(--mint-primary-xl)',
+      color: r.unsynced ? ui.warn : 'var(--mint-primary-d)',
+      border: `1px solid ${r.unsynced ? '#f3d19a' : ui.border}` }}>
+    {r.unsynced ? 'ยังไม่ซิงก์' : 'ของฉัน'}
+  </span>
+) : null;
+
+/** การ์ด 1 รายการสำหรับมือถือ — แทนตารางที่ต้องเลื่อนแนวนอน */
+const ResultCard = ({ r, onOpen }) => (
+  <button onClick={onOpen} className="lift" style={{
+    width: '100%', textAlign: 'left', cursor: 'pointer', background: 'white',
+    border: `1.5px solid ${ui.border}`, borderRadius: radius.lg, padding: '14px',
+    boxShadow: shadow.sm, display: 'flex', flexDirection: 'column', gap: 10,
+  }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ ...text.bodyStrong, color: ui.text, ...clamp(1) }}>{r.name}<OwnerChip r={r} /></div>
+        <div style={{ ...text.small, color: ui.muted, marginTop: 2 }}>
+          {r.age} ปี · {r.gender}{r.hn ? ` · ${fmtHN(r.hn)}` : ''}
+        </div>
+      </div>
+      <ScoreCell r={r} />
+    </div>
+
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+      <TypeChip type={r.type} />
+      <StatusChip impaired={r.impaired} />
+    </div>
+
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, ...text.small, color: ui.muted, borderTop: `1px solid ${ui.border2}`, paddingTop: 9 }}>
+      <span>{r.datetime}</span>
+      {r.duration > 0 && <span style={{ fontWeight: 700, color: ui.text2 }}>⏱ {fmtDuration(r.duration)}</span>}
+    </div>
+  </button>
+);
+
 const NAV_ITEMS = [
   { key: 'home',    label: 'หน้าหลัก',   Icon: Home },
   { key: 'results', label: 'ผลประเมิน',  Icon: ClipboardList },
@@ -518,146 +571,168 @@ const ResultsPage = ({ results, onExport, onRefresh, onSyncPending, loading, syn
     return 0;
   });
 
+  const isCompact = useIsCompact();
+  const [showFilters, setShowFilters] = useState(false);
+  // นับตัวกรองที่กำลังทำงาน เพื่อบอกผู้ใช้ว่ามีอะไรซ่อนอยู่หลังปุ่ม "ตัวกรอง"
+  const activeFilters = [filterType !== 'All', filterImpaired !== 'all', dateFrom, dateTo].filter(Boolean).length;
+
+  const selectStyle = { padding: '11px 13px', borderRadius: radius.md, border: `1.5px solid ${ui.border}`, ...text.small, fontWeight: 600, outline: 'none', background: 'white', cursor: 'pointer', color: ui.text, minHeight: 44, width: '100%' };
+  const actionStyle = (primary) => ({
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+    padding: isCompact ? '10px 12px' : '10px 15px', borderRadius: radius.md, ...text.small, fontWeight: 700,
+    cursor: 'pointer', minHeight: 44, whiteSpace: 'nowrap',
+    background: primary ? 'linear-gradient(135deg, var(--mint-primary), var(--mint-primary-l))' : 'white',
+    color: primary ? 'white' : ui.text2,
+    border: primary ? 'none' : `1.5px solid ${ui.border}`,
+  });
+
   return (
     <div className="fade-up">
       {detailResult && <ResultDetailModal result={detailResult} onClose={() => setDetailResult(null)} />}
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 20, gap: 12 }}>
-        <div>
-          <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--mint-text)' }}>ผลการทดสอบทั้งหมด</h2>
-          <p style={{ fontSize: 14, color: 'var(--mint-muted)', marginTop: 4 }}>
-            {loading ? 'กำลังโหลดจาก Google Sheets…' : <> พบ <strong style={{ color: 'var(--mint-primary)' }}>{filtered.length}</strong> จากทั้งหมด {results.length} รายการ · บันทึกจากเครื่องนี้ <strong style={{ color: 'var(--mint-primary)' }}>{mineCount}</strong> รายการ</>}
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }} className="no-print">
-          <button onClick={onRefresh} disabled={loading} style={{ padding: '9px 14px', borderRadius: 11, fontSize: 13, fontWeight: 700, background: 'var(--mint-primary-xl)', border: '1px solid var(--mint-border)', color: 'var(--mint-primary)', cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, opacity: loading ? 0.6 : 1 }}>
-            {loading ? <Spinner size={14} color="var(--mint-primary)" /> : '🔄'} รีเฟรช
+      <div style={{ marginBottom: 14 }}>
+        <h2 style={{ ...text.h1, color: ui.text }}>ผลการทดสอบทั้งหมด</h2>
+        <p style={{ ...text.small, color: ui.muted, marginTop: 4 }}>
+          {loading ? 'กำลังโหลดจาก Google Sheets…'
+            : <>พบ <strong style={{ color: 'var(--mint-primary-d)' }}>{filtered.length}</strong> จาก {results.length} รายการ · บันทึกจากเครื่องนี้ {mineCount}</>}
+        </p>
+      </div>
+
+      <div className="no-print" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+        <button onClick={onRefresh} disabled={loading} style={{ ...actionStyle(false), opacity: loading ? 0.6 : 1 }}>
+          {loading ? <Spinner size={15} color="var(--mint-primary)" /> : <RefreshCw size={16} strokeWidth={2.2} />} รีเฟรช
+        </button>
+        {pendingCount > 0 && (
+          <button onClick={onSyncPending} disabled={syncing || loading} style={{ ...actionStyle(false), background: ui.warnBg, borderColor: '#f3d19a', color: ui.warn, opacity: (syncing || loading) ? 0.6 : 1 }}>
+            {syncing ? <Spinner size={15} color={ui.warn} /> : <UploadCloud size={16} strokeWidth={2.2} />} ซิงก์ที่ค้าง ({pendingCount})
           </button>
-          {pendingCount > 0 && (
-            <button onClick={onSyncPending} disabled={syncing || loading} title="ส่งผลที่บันทึกไว้ในเครื่องขึ้น Google Sheets" style={{ padding: '9px 14px', borderRadius: 11, fontSize: 13, fontWeight: 700, background: '#fff7ed', border: '1px solid #fcd34d', color: '#b45309', cursor: (syncing || loading) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, opacity: (syncing || loading) ? 0.6 : 1 }}>
-              {syncing ? <Spinner size={14} color="#b45309" /> : '⬆️'} ซิงก์ที่ค้าง ({pendingCount})
-            </button>
-          )}
-          {results.length > 0 && <>
-            <button onClick={() => window.print()} style={{ padding: '9px 14px', borderRadius: 11, fontSize: 13, fontWeight: 700, background: 'white', border: '1.5px solid var(--mint-border)', color: 'var(--mint-text2)', cursor: 'pointer' }}>🖨️ พิมพ์</button>
-            <button onClick={onExport} style={{ padding: '9px 16px', borderRadius: 11, fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg, var(--mint-primary), var(--mint-primary-l))', color: 'white', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(14,159,142,0.28)' }}>📥 ดาวน์โหลด CSV</button>
-          </>}
-        </div>
+        )}
+        {results.length > 0 && <>
+          <button onClick={() => window.print()} style={actionStyle(false)}><Printer size={16} strokeWidth={2.2} />{!isCompact && ' พิมพ์'}</button>
+          <button onClick={onExport} style={actionStyle(true)}><Download size={16} strokeWidth={2.2} /> CSV</button>
+        </>}
       </div>
 
       {!loading && results.length > 0 && (
-        <div style={{ display: 'inline-flex', gap: 4, marginBottom: 12, padding: 4, background: 'var(--mint-surface2)', border: '1.5px solid var(--mint-border)', borderRadius: 14 }} className="no-print">
-          {[
-            { v: 'all',  label: '🌐 ผลทั้งหมด',  count: results.length },
-            { v: 'mine', label: '👤 ของฉัน',      count: mineCount },
-          ].map(o => {
-            const on = filterOwner === o.v;
-            return (
-              <button key={o.v} onClick={() => setFilterOwner(o.v)} style={{ padding: '8px 16px', borderRadius: 11, fontSize: 13, fontWeight: 700, border: 'none', background: on ? 'white' : 'transparent', color: on ? 'var(--mint-primary)' : 'var(--mint-muted)', boxShadow: on ? 'var(--shadow-sm)' : 'none', cursor: 'pointer', transition: 'all 0.15s' }}>
-                {o.label} <span style={{ fontWeight: 600, opacity: 0.7 }}>({o.count})</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {!loading && results.length > 0 && (
-        <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }} className="no-print">
-          <input type="text" placeholder="🔍 ค้นหาชื่อ-นามสกุล..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ padding: '10px 14px', borderRadius: '12px', border: '1.5px solid var(--mint-border)', fontSize: 13, fontWeight: 600, outline: 'none', flex: '1 1 200px', background: 'white' }} />
-          <select value={filterType} onChange={e => setFilterType(e.target.value)} style={{ padding: '10px 14px', borderRadius: '12px', border: '1.5px solid var(--mint-border)', fontSize: 13, fontWeight: 600, outline: 'none', background: 'white', flex: '1 1 150px', cursor: 'pointer', color: 'var(--mint-text)' }}>
-            <option value="All">📌 ทุกแบบทดสอบ</option>
-            {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-          <select value={filterImpaired} onChange={e => setFilterImpaired(e.target.value)} style={{ padding: '10px 14px', borderRadius: '12px', border: '1.5px solid var(--mint-border)', fontSize: 13, fontWeight: 600, outline: 'none', background: 'white', flex: '1 1 130px', cursor: 'pointer', color: 'var(--mint-text)' }}>
-            <option value="all">📊 ทุกผลลัพธ์</option>
-            <option value="impaired">⚠️ พบปัญหา</option>
-            <option value="normal">✅ ปกติ</option>
-          </select>
-          <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ padding: '10px 14px', borderRadius: '12px', border: '1.5px solid var(--mint-border)', fontSize: 13, fontWeight: 600, outline: 'none', background: 'white', flex: '1 1 150px', cursor: 'pointer', color: 'var(--mint-text)' }}>
-            <option value="date-desc">🕒 วันที่: ล่าสุด - เก่าสุด</option>
-            <option value="date-asc">🕒 วันที่: เก่าสุด - ล่าสุด</option>
-            <option value="name-asc">🔤 ชื่อ: ก - ฮ</option>
-            <option value="age-asc">👤 อายุ: น้อย - มาก</option>
-            <option value="age-desc">👤 อายุ: มาก - น้อย</option>
-          </select>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: '1 1 220px' }}>
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} title="วันที่เริ่มต้น" style={{ padding: '10px 10px', borderRadius: '12px', border: '1.5px solid var(--mint-border)', fontSize: 12, outline: 'none', background: 'white', flex: 1, color: 'var(--mint-text)' }} />
-            <span style={{ fontSize: 12, color: 'var(--mint-muted)', flexShrink: 0 }}>ถึง</span>
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} title="วันที่สิ้นสุด" style={{ padding: '10px 10px', borderRadius: '12px', border: '1.5px solid var(--mint-border)', fontSize: 12, outline: 'none', background: 'white', flex: 1, color: 'var(--mint-text)' }} />
-            {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(''); setDateTo(''); }} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--mint-muted)', flexShrink: 0, lineHeight: 1 }}>×</button>}
+        <div className="no-print" style={{ marginBottom: 14 }}>
+          {/* ขอบเขต: ทั้งหมด vs เฉพาะที่บันทึกจากเครื่องนี้ */}
+          <div style={{ display: 'inline-flex', gap: 4, padding: 4, background: ui.surface2, border: `1.5px solid ${ui.border}`, borderRadius: radius.md, marginBottom: 10 }}>
+            {[{ v: 'all', label: 'ผลทั้งหมด', n: results.length }, { v: 'mine', label: 'ของฉัน', n: mineCount }].map(o => {
+              const on = filterOwner === o.v;
+              return (
+                <button key={o.v} onClick={() => setFilterOwner(o.v)} style={{ padding: '9px 15px', borderRadius: radius.sm, ...text.small, fontWeight: 700, border: 'none', cursor: 'pointer', minHeight: 40, background: on ? 'white' : 'transparent', color: on ? 'var(--mint-primary-d)' : ui.muted, boxShadow: on ? shadow.sm : 'none' }}>
+                  {o.label} <span style={{ opacity: 0.7 }}>({o.n})</span>
+                </button>
+              );
+            })}
           </div>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <Search size={17} strokeWidth={2.2} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: ui.muted }} />
+              <input type="text" placeholder="ค้นหาชื่อ-นามสกุล" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                style={{ ...selectStyle, paddingLeft: 37, cursor: 'text' }} />
+            </div>
+            {isCompact && (
+              <button onClick={() => setShowFilters(v => !v)} style={{ ...actionStyle(false), position: 'relative' }}>
+                <SlidersHorizontal size={17} strokeWidth={2.2} />
+                {activeFilters > 0 && <span style={{ position: 'absolute', top: 4, right: 4, minWidth: 17, height: 17, borderRadius: radius.pill, background: 'var(--mint-primary)', color: 'white', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{activeFilters}</span>}
+              </button>
+            )}
+          </div>
+
+          {/* บนมือถือซ่อนตัวกรองที่เหลือไว้หลังปุ่ม ของเดิมยัด 5 ช่องเรียงกันจนล้น */}
+          {(!isCompact || showFilters) && (
+            <div style={{ display: 'grid', gridTemplateColumns: isCompact ? '1fr' : 'repeat(auto-fit, minmax(170px, 1fr))', gap: 8, marginTop: 8 }}>
+              <select value={filterType} onChange={e => setFilterType(e.target.value)} style={selectStyle}>
+                <option value="All">ทุกแบบทดสอบ</option>
+                {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <select value={filterImpaired} onChange={e => setFilterImpaired(e.target.value)} style={selectStyle}>
+                <option value="all">ทุกผลลัพธ์</option>
+                <option value="impaired">พบปัญหา</option>
+                <option value="normal">ปกติ</option>
+              </select>
+              <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={selectStyle}>
+                <option value="date-desc">วันที่: ล่าสุดก่อน</option>
+                <option value="date-asc">วันที่: เก่าสุดก่อน</option>
+                <option value="name-asc">ชื่อ: ก - ฮ</option>
+                <option value="age-asc">อายุ: น้อย - มาก</option>
+                <option value="age-desc">อายุ: มาก - น้อย</option>
+              </select>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={{ ...selectStyle, flex: 1 }} />
+                <span style={{ ...text.small, color: ui.muted }}>ถึง</span>
+                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={{ ...selectStyle, flex: 1 }} />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', border: '1.5px solid var(--mint-border)', borderRadius: 22 }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}><Spinner size={36} /></div><p style={{ fontSize: 14, color: 'var(--mint-muted)' }}>กำลังโหลดข้อมูลจาก Google Sheets…</p>
+        <div style={{ textAlign: 'center', padding: '56px 20px', background: 'white', border: `1.5px solid ${ui.border}`, borderRadius: radius.xl }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}><Spinner size={34} /></div>
+          <p style={{ ...text.small, color: ui.muted }}>กำลังโหลดข้อมูลจาก Google Sheets…</p>
         </div>
       ) : results.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', border: '1.5px dashed var(--mint-border)', borderRadius: 22, color: 'var(--mint-muted)' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div><p style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>ยังไม่มีข้อมูล</p><p style={{ fontSize: 13 }}>ทำแบบทดสอบก่อนแล้วผลจะปรากฏที่นี่</p>
+        <div style={{ textAlign: 'center', padding: '56px 20px', background: 'white', border: `1.5px dashed ${ui.border}`, borderRadius: radius.xl, color: ui.muted }}>
+          <ClipboardList size={44} strokeWidth={1.5} style={{ marginBottom: 12, opacity: 0.5 }} />
+          <p style={{ ...text.h3, color: ui.text2, marginBottom: 6 }}>ยังไม่มีข้อมูล</p>
+          <p style={{ ...text.small }}>ทำแบบทดสอบก่อน แล้วผลจะปรากฏที่นี่</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px 20px', background: 'white', border: '1.5px dashed var(--mint-border)', borderRadius: 22, color: 'var(--mint-muted)' }}>
-          <p style={{ fontSize: 15, fontWeight: 700 }}>ไม่พบข้อมูลที่ค้นหา</p>
+        <div style={{ textAlign: 'center', padding: '40px 20px', background: 'white', border: `1.5px dashed ${ui.border}`, borderRadius: radius.xl, color: ui.muted }}>
+          <p style={{ ...text.h3, color: ui.text2 }}>ไม่พบข้อมูลที่ค้นหา</p>
+        </div>
+      ) : isCompact ? (
+        /* มือถือ: การ์ดต่อ 1 รายการ ของเดิมเป็นตารางกว้าง 560px ต้องเลื่อนแนวนอนอ่าน */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {filtered.map(r => <ResultCard key={r.originalIndex} r={r} onOpen={() => setDetailResult(r)} />)}
         </div>
       ) : (
-        <div style={{ background: 'white', border: '1.5px solid var(--mint-border)', borderRadius: 22, overflow: 'hidden', boxShadow: 'var(--shadow-md)' }}>
+        <div style={{ background: 'white', border: `1.5px solid ${ui.border}`, borderRadius: radius.xl, overflow: 'hidden', boxShadow: shadow.md }}>
           <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 560 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
               <thead>
-                <tr style={{ background: 'var(--mint-surface2)', borderBottom: '2px solid var(--mint-border2)' }}>
+                <tr style={{ background: ui.surface2, borderBottom: `2px solid ${ui.border2}` }}>
                   {['#','ชื่อ-นามสกุล','อายุ','เพศ','แบบทดสอบ','คะแนน/ผล','การแปลผล','วันที่/เวลา','ระยะเวลา'].map(h => (
-                    <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontWeight: 700, color: 'var(--mint-text2)', fontSize: 11, letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                    <th key={h} style={{ padding: '12px 14px', textAlign: 'left', fontWeight: 700, color: ui.text2, ...text.label, whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r, i) => {
-                  const noScoreMax = r.type === 'Bone and Joint' || r.type.includes('Depression') || r.type.includes('Suicide') || r.type.includes('MSRA');
-                  return (
+                {filtered.map((r, i) => (
                   <tr key={r.originalIndex}
-                    style={{ borderBottom: '1px solid var(--mint-border2)', transition: 'background 0.15s', cursor: 'pointer' }}
+                    style={{ borderBottom: `1px solid ${ui.border2}`, cursor: 'pointer' }}
                     onClick={() => setDetailResult(r)}
-                    onMouseOver={e => e.currentTarget.style.background = 'var(--mint-surface2)'}
+                    onMouseOver={e => e.currentTarget.style.background = ui.surface2}
                     onMouseOut={e  => e.currentTarget.style.background = 'transparent'}>
-                    <td style={{ padding: '11px 14px', color: 'var(--mint-muted)', fontWeight: 600 }}>{i+1}</td>
-                    <td style={{ padding: '11px 14px' }}>
-                      <span
-                        style={{ fontWeight: 700, color: 'var(--mint-primary)', textDecoration: 'underline', cursor: 'pointer' }}
-                        onClick={e => { e.stopPropagation(); setSearchTerm(r.name); }}
-                        title="คลิกเพื่อกรองผลของผู้ป่วยคนนี้"
-                      >{r.name}</span>
-                      {r.mine && <span title={r.unsynced ? 'บันทึกในเครื่องนี้ · ยังไม่ขึ้น Google Sheets' : 'บันทึกจากเครื่องนี้'} style={{ marginLeft: 6, padding: '2px 7px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: r.unsynced ? '#fff7ed' : 'var(--mint-primary-xl)', color: r.unsynced ? '#b45309' : 'var(--mint-primary)', border: '1px solid ' + (r.unsynced ? '#fcd34d88' : 'var(--mint-border)'), whiteSpace: 'nowrap' }}>{r.unsynced ? '👤 ยังไม่ซิงก์' : '👤 ของฉัน'}</span>}
-                      {r.hn && <span style={{ fontSize: 11, color: 'var(--mint-muted)', display: 'block' }}>HN: {r.hn}</span>}
+                    <td style={{ padding: '12px 14px', color: ui.muted, fontWeight: 600, ...text.small }}>{i+1}</td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <span onClick={e => { e.stopPropagation(); setSearchTerm(r.name); }} title="คลิกเพื่อกรองผลของผู้ป่วยคนนี้"
+                        style={{ ...text.bodyStrong, color: 'var(--mint-primary-d)', textDecoration: 'underline' }}>{r.name}</span>
+                      <OwnerChip r={r} />
+                      {r.hn && <span style={{ ...text.label, fontWeight: 500, color: ui.muted, display: 'block' }}>{fmtHN(r.hn)}</span>}
                     </td>
-                    <td style={{ padding: '11px 14px', color: 'var(--mint-text2)' }}>{r.age} ปี</td>
-                    <td style={{ padding: '11px 14px', color: 'var(--mint-text2)' }}>{r.gender}</td>
-                    <td style={{ padding: '11px 14px' }}><span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: TYPE_BG[r.type] || 'var(--mint-surface2)', color: TYPE_COLORS[r.type] || 'var(--mint-muted)', whiteSpace: 'nowrap' }}>{r.type}</span></td>
-                    <td style={{ padding: '11px 14px', fontWeight: 800, fontSize: 15, color: r.impaired ? 'var(--mint-warn)' : (TYPE_COLORS[r.type] || 'var(--mint-primary)') }}>
-                      {noScoreMax ? '—' : r.totalScore}
-                      {(!noScoreMax && r.type !== 'Fall Risk (TUGT)') && <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--mint-muted)' }}>/{r.maxScore}</span>}
-                      {r.type === 'Fall Risk (TUGT)' && <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--mint-muted)' }}> วิ.</span>}
-                    </td>
-                    <td style={{ padding: '11px 14px' }}>
-                      <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: r.impaired ? '#fff7ed' : '#f0fdf9', color: r.impaired ? '#92400e' : '#065f46', border: '1px solid ' + (r.impaired ? '#fcd34d88' : '#6ee7d588'), whiteSpace: 'nowrap' }}>
-                        {r.impaired ? '⚠️ พบปัญหา' : '✅ ปกติ'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '11px 14px', color: 'var(--mint-muted)', fontSize: 12, whiteSpace: 'nowrap' }}>{r.datetime}</td>
-                    <td style={{ padding: '11px 14px', color: 'var(--mint-text2)', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                      {r.duration > 0 ? `⏱ ${String(Math.floor(r.duration/60)).padStart(2,'0')}:${String(r.duration%60).padStart(2,'0')}` : '—'}
-                    </td>
+                    <td style={{ padding: '12px 14px', color: ui.text2, ...text.small }}>{r.age} ปี</td>
+                    <td style={{ padding: '12px 14px', color: ui.text2, ...text.small }}>{r.gender}</td>
+                    <td style={{ padding: '12px 14px' }}><TypeChip type={r.type} /></td>
+                    <td style={{ padding: '12px 14px' }}><ScoreCell r={r} /></td>
+                    <td style={{ padding: '12px 14px' }}><StatusChip impaired={r.impaired} /></td>
+                    <td style={{ padding: '12px 14px', color: ui.muted, ...text.small, whiteSpace: 'nowrap' }}>{r.datetime}</td>
+                    <td style={{ padding: '12px 14px', color: ui.text2, ...text.small, fontWeight: 700, whiteSpace: 'nowrap' }}>{fmtDuration(r.duration)}</td>
                   </tr>
-                )})}
+                ))}
               </tbody>
             </table>
           </div>
-          <p style={{ fontSize: 11, color: 'var(--mint-muted)', padding: '10px 16px', textAlign: 'right' }} className="no-print">คลิกแถวเพื่อดูรายละเอียด · คลิกชื่อเพื่อกรองผู้ป่วย</p>
+          <p style={{ ...text.small, color: ui.muted, padding: '10px 16px', textAlign: 'right' }} className="no-print">คลิกแถวเพื่อดูรายละเอียด · คลิกชื่อเพื่อกรองผู้ป่วย</p>
         </div>
       )}
     </div>
   );
+
 };
 
 export default function App() {
@@ -889,224 +964,8 @@ export default function App() {
 
         {tab === 'results' && <ResultsPage results={allResults} onExport={() => exportCSV(allResults)} onRefresh={loadResults} onSyncPending={handleSyncPending} loading={loadingData} syncing={syncingPending} />}
 
-        {tab === 'about' && (
-          <div style={{ maxWidth: 800, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }} className="fade-up">
-            <div style={{ marginBottom: 12, textAlign: 'center' }}>
-              <h2 style={{ fontSize: 26, fontWeight: 800, color: 'var(--mint-text)' }}>เกณฑ์การประเมินและแปลผล</h2>
-              <p style={{ fontSize: 14, color: 'var(--mint-muted)', marginTop: 5, lineHeight: 1.6 }}>
-                อ้างอิงจากคู่มือการคัดกรองและประเมินสุขภาพผู้สูงอายุ พ.ศ. 2564 <br/>กรมการแพทย์ กระทรวงสาธารณสุข
-              </p>
-            </div>
+        {tab === 'about' && <CriteriaPage />}
 
-            {/* 🧠 1. สมรรถภาพสมอง */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, marginBottom: -10 }}>
-              <div style={{ width: 4, height: 22, borderRadius: 2, background: 'var(--mint-primary)' }} />
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--mint-text)' }}>สมรรถภาพสมอง (Cognitive Function)</h2>
-            </div>
-
-            <CriteriaBlock title="Mini-Cog™" color="var(--mint-primary)">
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 14 }}>
-                ทดสอบการจำคำ 3 คำ (0-3 คะแนน) และการวาดรูปนาฬิกา (0 หรือ 2 คะแนน) <strong>คะแนนเต็ม 5 คะแนน</strong>
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 14 }}>
-                <ScoreRow label="3 - 5 คะแนน" val="ปกติ (Negative)" color="var(--mint-primary)" />
-                <ScoreRow label="0 - 2 คะแนน" val="สงสัยภาวะสมองเสื่อม (Positive)" color="#dc2626" />
-              </div>
-              <p style={{ fontSize: 13, color: 'var(--mint-text2)', background: 'var(--mint-surface2)', padding: '10px 14px', borderRadius: 10 }}>
-                <strong>วิธีคิดคะแนน:</strong> จำได้ 3 คำ = ปกติ (ไม่ต้องดูนาฬิกา), จำไม่ได้เลย (0 คำ) = ผิดปกติ, จำได้ 1-2 คำ = ให้ดูรูปนาฬิกา (ถ้านาฬิกาปกติ +2 คะแนน / ถ้านาฬิกาผิดปกติ +0 คะแนน)
-              </p>
-            </CriteriaBlock>
-
-            <CriteriaBlock title="TMSE (Thai Mental State Examination)" color="var(--mint-blue)">
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 14 }}>
-                แบบทดสอบสภาพสมองผู้สูงอายุไทย 6 ด้าน <strong>คะแนนเต็ม 30 คะแนน</strong>
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 4 }}>
-                <ScoreRow label="≥ 24 คะแนน" val="อยู่ในเกณฑ์ปกติ" color="var(--mint-blue)" />
-                <ScoreRow label="< 24 (≤ 23) คะแนน" val="สงสัยภาวะสมองเสื่อม" color="#dc2626" />
-              </div>
-            </CriteriaBlock>
-
-            <CriteriaBlock title="MMSE-Thai 2002" color="#0d9488">
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 14 }}>
-                ประเมินสภาพสมองเบื้องต้น <strong>คะแนนเต็ม 30 คะแนน</strong> (เกณฑ์จุดตัดขึ้นอยู่กับระดับการศึกษาของผู้ทดสอบ)
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 4 }}>
-                <ScoreRow label="ไม่ได้เรียนหนังสือ / อ่านไม่ออก" val="จุดตัด ≤ 14 คะแนน" color="#0d9488" />
-                <ScoreRow label="ระดับประถมศึกษา (ป.1 - ป.6)" val="จุดตัด ≤ 17 คะแนน" color="#0d9488" />
-                <ScoreRow label="ระดับสูงกว่าประถมศึกษา" val="จุดตัด ≤ 22 คะแนน" color="#0d9488" />
-              </div>
-              <WarnBadge>หากคะแนนรวม <strong>น้อยกว่าหรือเท่ากับ (≤)</strong> จุดตัด ถือว่ามีแนวโน้มภาวะสมองเสื่อม</WarnBadge>
-            </CriteriaBlock>
-
-            <CriteriaBlock title="MoCA (Montreal Cognitive Assessment)" color="#8b5cf6">
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 14 }}>
-                เหมาะสำหรับคัดกรองภาวะสมองเสื่อมระยะเริ่มต้น (MCI) <strong>คะแนนเต็ม 30 คะแนน</strong> (บวกเพิ่ม 1 คะแนน หากการศึกษา ≤ 6 ปี)
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 4 }}>
-                <ScoreRow label="≥ 25 คะแนน" val="อยู่ในเกณฑ์ปกติ" color="#8b5cf6" />
-                <ScoreRow label="< 25 (≤ 24) คะแนน" val="สงสัยภาวะสมองเสื่อม" color="#dc2626" />
-              </div>
-            </CriteriaBlock>
-
-            {/* 🥗 2. โภชนาการและมวลกล้ามเนื้อ */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 20, marginBottom: -10 }}>
-              <div style={{ width: 4, height: 22, borderRadius: 2, background: '#d97706' }} />
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--mint-text)' }}>โภชนาการและมวลกล้ามเนื้อ</h2>
-            </div>
-
-            <CriteriaBlock title="ภาวะโภชนาการ (MNA - Mini Nutritional Assessment)" color="#d97706">
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 8 }}>
-                <strong>ส่วนที่ 1: แบบคัดกรอง (MNA-SF) คะแนนเต็ม 14 คะแนน</strong>
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 16 }}>
-                <ScoreRow label="12 - 14 คะแนน" val="ภาวะโภชนาการปกติ" color="#d97706" />
-                <ScoreRow label="8 - 11 คะแนน" val="เสี่ยงขาดสารอาหาร (ทำแบบเต็มต่อ)" color="#d97706" />
-                <ScoreRow label="0 - 7 คะแนน" val="ขาดสารอาหาร (ทำแบบเต็มต่อ)" color="#dc2626" />
-              </div>
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 8 }}>
-                <strong>ส่วนที่ 2: แบบประเมินเต็ม (MNA-Full) คะแนนเต็ม 30 คะแนน</strong>
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 4 }}>
-                <ScoreRow label="24 - 30 คะแนน" val="ภาวะโภชนาการปกติ" color="#d97706" />
-                <ScoreRow label="17 - 23.5 คะแนน" val="มีความเสี่ยงต่อภาวะขาดสารอาหาร" color="#b45309" />
-                <ScoreRow label="< 17 คะแนน" val="ภาวะขาดสารอาหาร" color="#dc2626" />
-              </div>
-            </CriteriaBlock>
-
-            <CriteriaBlock title="มวลกล้ามเนื้อ (Modified MSRA-5)" color="#d97706">
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 14 }}>
-                ประเมินความเสี่ยงมวลกล้ามเนื้อ (Sarcopenia) จำนวน 5 ข้อ (ตอบ "ไม่ใช่" = 1 คะแนน, ตอบ "ใช่" = 0 คะแนน)
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 4 }}>
-                <ScoreRow label="4 - 5 คะแนน" val="มวลกล้ามเนื้อปกติ" color="#d97706" />
-                <ScoreRow label="≤ 3 คะแนน" val="เสี่ยงภาวะมวลกล้ามเนื้อน้อย" color="#dc2626" />
-              </div>
-            </CriteriaBlock>
-
-            {/* 🛌 3. สมรรถนะการดูแล */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 20, marginBottom: -10 }}>
-              <div style={{ width: 4, height: 22, borderRadius: 2, background: '#4f46e5' }} />
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--mint-text)' }}>สมรรถนะผู้สูงอายุเพื่อการดูแล</h2>
-            </div>
-
-            <CriteriaBlock title="กิจวัตรประจำวัน (Barthel ADL Index)" color="#4f46e5">
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 14 }}>
-                ประเมินความสามารถในการทำกิจวัตรพื้นฐาน 10 ประการ <strong>คะแนนเต็ม 20 คะแนน</strong>
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 4 }}>
-                <ScoreRow label="12 - 20 คะแนน" val="กลุ่มติดสังคม (พึ่งพาตนเองได้)" color="#4f46e5" />
-                <ScoreRow label="5 - 11 คะแนน" val="กลุ่มติดบ้าน (พึ่งพาผู้อื่นปานกลาง)" color="#b45309" />
-                <ScoreRow label="0 - 4 คะแนน" val="กลุ่มติดเตียง (พึ่งพาผู้อื่นทั้งหมด)" color="#dc2626" />
-              </div>
-            </CriteriaBlock>
-
-            <CriteriaBlock title="ความเปราะบาง (Frail Scale)" color="#4f46e5">
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 14 }}>
-                คัดกรองปัจจัยเสี่ยง 5 ข้อ (เหนื่อยล้า, ขึ้นบันได, เดิน 1 ช่วงตึก, โรคประจำตัว ≥5, น้ำหนักลด)
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 4 }}>
-                <ScoreRow label="0 ข้อ" val="ปกติ (Robust)" color="#4f46e5" />
-                <ScoreRow label="1 - 2 ข้อ" val="ก่อนเปราะบาง (Pre-frail)" color="#b45309" />
-                <ScoreRow label="3 - 5 ข้อ" val="เปราะบาง (Frail)" color="#dc2626" />
-              </div>
-            </CriteriaBlock>
-
-            {/* 🏥 4. สุขภาพทั่วไปและกลุ่มอาการ */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 20, marginBottom: -10 }}>
-              <div style={{ width: 4, height: 22, borderRadius: 2, background: '#0891b2' }} />
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--mint-text)' }}>สุขภาพทั่วไป และ กลุ่มอาการผู้สูงอายุ</h2>
-            </div>
-
-            <CriteriaBlock title="สุขภาพช่องปาก และ สุขภาวะทางตา" color="#0891b2">
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 8 }}>
-                <strong>ช่องปาก (8 รายการ):</strong> หากพบความผิดปกติในข้อ 1 - 7 แม้เพียงข้อเดียว ควรส่งต่อทันตแพทย์
-              </p>
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 4 }}>
-                <strong>สายตา (5 รายการ + Snellen):</strong> ควรส่งต่อจักษุแพทย์เมื่อ...
-              </p>
-              <ul style={{ fontSize: 13, color: 'var(--mint-text2)', lineHeight: 1.6, paddingLeft: 20, marginBottom: 4 }}>
-                <li>ตอบ "ใช่" ในคำถามคัดกรองข้อใดข้อหนึ่ง (ต้อกระจก, ต้อหิน, จอตาเสื่อม)</li>
-                <li>อ่าน Snellen Chart ได้น้อยกว่าแถวที่ 5 (แย่กว่า 20/40) หรือรู้สึกสายตาแย่ลง</li>
-              </ul>
-            </CriteriaBlock>
-
-            <CriteriaBlock title="โรคทางกระดูกและข้อ (Bone and Joint)" color="#ea580c">
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 14 }}>ประกอบด้วยการประเมิน 3 ส่วนหลัก หากพบความเสี่ยงข้อใดข้อหนึ่งควรพิจารณาส่งต่อ:</p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 4 }}>
-                <ScoreRow label="OSTA Index" val="≤ -4 = ความเสี่ยงสูง" color="#ea580c" />
-                <ScoreRow label="FRAX Score" val="Major ≥ 20% หรือ Hip ≥ 3%" color="#ea580c" />
-                <ScoreRow label="โรคข้อเข่าเสื่อม" val="ปวดเข่า + พบอาการร่วม ≥ 2 ข้อ" color="#ea580c" />
-              </div>
-            </CriteriaBlock>
-
-            <CriteriaBlock title="ภาวะหกล้ม (Timed Up and Go Test: TUGT)" color="#059669">
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 14 }}>
-                จับเวลาลุกจากเก้าอี้ เดิน 3 เมตร และกลับมานั่งที่เดิม
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 4 }}>
-                <ScoreRow label="เวลาที่ใช้ < 12 วินาที" val="การทรงตัวปกติ" color="#059669" />
-                <ScoreRow label="เวลาที่ใช้ ≥ 12 วินาที" val="มีความเสี่ยงต่อภาวะหกล้ม" color="#dc2626" />
-              </div>
-            </CriteriaBlock>
-
-            {/* ❤️‍🩹 5. สุขภาพจิต */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 20, marginBottom: -10 }}>
-              <div style={{ width: 4, height: 22, borderRadius: 2, background: '#e11d48' }} />
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--mint-text)' }}>สุขภาพจิต (Mental Health)</h2>
-            </div>
-
-            <CriteriaBlock title="โรคซึมเศร้า (2Q และ 9Q)" color="#e11d48">
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 8 }}>
-                <strong>2Q (คัดกรอง):</strong> หากตอบ "มี" อย่างน้อย 1 ข้อ ถือว่ามีความเสี่ยง ต้องประเมิน 9Q ต่อ
-              </p>
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 14 }}>
-                <strong>9Q (ประเมินความรุนแรง):</strong> คะแนนเต็ม 27 คะแนน
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 14 }}>
-                <ScoreRow label="< 7 คะแนน" val="ไม่มีอาการซึมเศร้า" color="#e11d48" />
-                <ScoreRow label="7 - 12 คะแนน" val="ซึมเศร้าระดับน้อย" color="#e11d48" />
-                <ScoreRow label="13 - 18 คะแนน" val="ซึมเศร้าระดับปานกลาง" color="#dc2626" />
-                <ScoreRow label="≥ 19 คะแนน" val="ซึมเศร้าระดับรุนแรง" color="#991b1b" />
-              </div>
-              <WarnBadge>หากข้อ 9 ใน 9Q (คิดทำร้ายตัวเอง) มีคะแนน ต้องประเมินความเสี่ยงฆ่าตัวตาย (8Q) ทันที</WarnBadge>
-            </CriteriaBlock>
-
-            <CriteriaBlock title="ความเสี่ยงฆ่าตัวตาย (8Q)" color="#dc2626">
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 14 }}>
-                คัดกรองแนวโน้มการฆ่าตัวตาย (น้ำหนักคะแนนแต่ละข้อไม่เท่ากัน)
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 4 }}>
-                <ScoreRow label="0 คะแนน" val="ไม่มีแนวโน้ม" color="#dc2626" />
-                <ScoreRow label="1 - 8 คะแนน" val="เสี่ยงฆ่าตัวตายระดับน้อย" color="#dc2626" />
-                <ScoreRow label="9 - 16 คะแนน" val="เสี่ยงฆ่าตัวตายระดับปานกลาง" color="#991b1b" />
-                <ScoreRow label="≥ 17 คะแนน" val="เสี่ยงฆ่าตัวตายระดับรุนแรง" color="#7f1d1d" />
-              </div>
-            </CriteriaBlock>
-
-            <CriteriaBlock title="ภาวะพึ่งพิง (TAI: Typology of Aged with Illustration)" color="#be185d">
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 8 }}>
-                ประเมินความสามารถในการทำกิจกรรม 4 ด้าน ได้แก่ <strong>การเคลื่อนที่ (Motility), สุขภาพจิตและสติปัญญา (Mental), การกินอาหาร (Feeding)</strong> และ <strong>การใช้ห้องน้ำ (Toilet)</strong> แต่ละด้านแบ่งเป็น 6 ระดับ (0 = ทำได้น้อยที่สุด ถึง 5 = ทำได้มากที่สุด) <strong>คะแนนรวม 0 - 20 คะแนน</strong>
-              </p>
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 14 }}>
-                การแปลผล<strong>ไม่ได้ใช้คะแนนรวม</strong> แต่ใช้การจัดกลุ่มเป็น 3 กลุ่มใหญ่ 9 กลุ่มย่อย ดังนี้
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10, marginBottom: 14 }}>
-                <ScoreRow label="B5 (เคลื่อนที่ได้ ไม่สับสน)" val="มีความผิดปกติน้อยมากหรือปกติ" color="#be185d" />
-                <ScoreRow label="B4 (เคลื่อนที่ได้ ไม่สับสน)" val="มีปัญหาการกินและการขับถ่ายเล็กน้อย" color="#be185d" />
-                <ScoreRow label="B3 (เคลื่อนที่ได้ ไม่สับสน)" val="มีปัญหาการกินและการขับถ่ายอย่างมาก" color="#b45309" />
-                <ScoreRow label="C4 (เคลื่อนที่ได้ แต่สับสน)" val="มีปัญหาสุขภาพจิต การกินและการขับถ่ายเล็กน้อย" color="#b45309" />
-                <ScoreRow label="C3 (เคลื่อนที่ได้ แต่สับสน)" val="มีปัญหาสุขภาพจิต การกิน และการขับถ่าย" color="#dc2626" />
-                <ScoreRow label="C2 (เคลื่อนที่ได้ แต่สับสน)" val="มีปัญหาสุขภาพจิต การกิน และการขับถ่าย อย่างมาก" color="#dc2626" />
-                <ScoreRow label="I3 (ติดเตียง)" val="มีปัญหาการเคลื่อนที่" color="#b45309" />
-                <ScoreRow label="I2 (ติดเตียง)" val="มีปัญหาการเคลื่อนที่และการกินอาหาร" color="#dc2626" />
-                <ScoreRow label="I1 (ติดเตียง)" val="มีปัญหาการเคลื่อนที่และการกินอาหารอย่างมาก" color="#991b1b" />
-              </div>
-              <WarnBadge>กลุ่มภาวะพึ่งพิง สปสช.: B3 = กลุ่ม 1 · C2 - C4 = กลุ่ม 2 · I3 = กลุ่ม 3 · I1 - I2 = กลุ่ม 4 (B4 - B5 ไม่เข้าเกณฑ์ภาวะพึ่งพิง)</WarnBadge>
-            </CriteriaBlock>
-
-          </div>
-        )}
       </main>
 
       {/* บนมือถือ footer ซ้อนกับแถบแท็บล่าง จึงแสดงเฉพาะตอนพิมพ์และบนจอใหญ่ */}
