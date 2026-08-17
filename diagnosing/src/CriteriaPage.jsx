@@ -146,6 +146,27 @@ const GROUPS = [
                 <ScoreRow label="3 - 5 ข้อ" val="เปราะบาง (Frail)" color="#dc2626" />
               </div>
             </CriteriaBlock>
+
+            <CriteriaBlock title="ภาวะพึ่งพิง (TAI: Typology of Aged with Illustration)" color="#4f46e5">
+              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 8 }}>
+                ประเมินความสามารถในการทำกิจกรรม 4 ด้าน ได้แก่ <strong>การเคลื่อนที่ (Motility), สุขภาพจิตและสติปัญญา (Mental), การกินอาหาร (Feeding)</strong> และ <strong>การใช้ห้องน้ำ (Toilet)</strong> แต่ละด้านแบ่งเป็น 6 ระดับ (0 = ทำได้น้อยที่สุด ถึง 5 = ทำได้มากที่สุด) <strong>คะแนนรวม 0 - 20 คะแนน</strong>
+              </p>
+              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 14 }}>
+                การแปลผล<strong>ไม่ได้ใช้คะแนนรวม</strong> แต่ใช้การจัดกลุ่มเป็น 3 กลุ่มใหญ่ 9 กลุ่มย่อย ดังนี้
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10, marginBottom: 14 }}>
+                <ScoreRow label="B5 (เคลื่อนที่ได้ ไม่สับสน)" val="มีความผิดปกติน้อยมากหรือปกติ" color="#4f46e5" />
+                <ScoreRow label="B4 (เคลื่อนที่ได้ ไม่สับสน)" val="มีปัญหาการกินและการขับถ่ายเล็กน้อย" color="#4f46e5" />
+                <ScoreRow label="B3 (เคลื่อนที่ได้ ไม่สับสน)" val="มีปัญหาการกินและการขับถ่ายอย่างมาก" color="#b45309" />
+                <ScoreRow label="C4 (เคลื่อนที่ได้ แต่สับสน)" val="มีปัญหาสุขภาพจิต การกินและการขับถ่ายเล็กน้อย" color="#b45309" />
+                <ScoreRow label="C3 (เคลื่อนที่ได้ แต่สับสน)" val="มีปัญหาสุขภาพจิต การกิน และการขับถ่าย" color="#dc2626" />
+                <ScoreRow label="C2 (เคลื่อนที่ได้ แต่สับสน)" val="มีปัญหาสุขภาพจิต การกิน และการขับถ่าย อย่างมาก" color="#dc2626" />
+                <ScoreRow label="I3 (ติดเตียง)" val="มีปัญหาการเคลื่อนที่" color="#b45309" />
+                <ScoreRow label="I2 (ติดเตียง)" val="มีปัญหาการเคลื่อนที่และการกินอาหาร" color="#dc2626" />
+                <ScoreRow label="I1 (ติดเตียง)" val="มีปัญหาการเคลื่อนที่และการกินอาหารอย่างมาก" color="#991b1b" />
+              </div>
+              <WarnBadge>กลุ่มภาวะพึ่งพิง สปสช.: B3 = กลุ่ม 1 · C2 - C4 = กลุ่ม 2 · I3 = กลุ่ม 3 · I1 - I2 = กลุ่ม 4 (B4 - B5 ไม่เข้าเกณฑ์ภาวะพึ่งพิง)</WarnBadge>
+            </CriteriaBlock>
       </>
     ),
   },
@@ -217,27 +238,6 @@ const GROUPS = [
                 <ScoreRow label="9 - 16 คะแนน" val="เสี่ยงฆ่าตัวตายระดับปานกลาง" color="#991b1b" />
                 <ScoreRow label="≥ 17 คะแนน" val="เสี่ยงฆ่าตัวตายระดับรุนแรง" color="#7f1d1d" />
               </div>
-            </CriteriaBlock>
-
-            <CriteriaBlock title="ภาวะพึ่งพิง (TAI: Typology of Aged with Illustration)" color="#be185d">
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 8 }}>
-                ประเมินความสามารถในการทำกิจกรรม 4 ด้าน ได้แก่ <strong>การเคลื่อนที่ (Motility), สุขภาพจิตและสติปัญญา (Mental), การกินอาหาร (Feeding)</strong> และ <strong>การใช้ห้องน้ำ (Toilet)</strong> แต่ละด้านแบ่งเป็น 6 ระดับ (0 = ทำได้น้อยที่สุด ถึง 5 = ทำได้มากที่สุด) <strong>คะแนนรวม 0 - 20 คะแนน</strong>
-              </p>
-              <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 14 }}>
-                การแปลผล<strong>ไม่ได้ใช้คะแนนรวม</strong> แต่ใช้การจัดกลุ่มเป็น 3 กลุ่มใหญ่ 9 กลุ่มย่อย ดังนี้
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10, marginBottom: 14 }}>
-                <ScoreRow label="B5 (เคลื่อนที่ได้ ไม่สับสน)" val="มีความผิดปกติน้อยมากหรือปกติ" color="#be185d" />
-                <ScoreRow label="B4 (เคลื่อนที่ได้ ไม่สับสน)" val="มีปัญหาการกินและการขับถ่ายเล็กน้อย" color="#be185d" />
-                <ScoreRow label="B3 (เคลื่อนที่ได้ ไม่สับสน)" val="มีปัญหาการกินและการขับถ่ายอย่างมาก" color="#b45309" />
-                <ScoreRow label="C4 (เคลื่อนที่ได้ แต่สับสน)" val="มีปัญหาสุขภาพจิต การกินและการขับถ่ายเล็กน้อย" color="#b45309" />
-                <ScoreRow label="C3 (เคลื่อนที่ได้ แต่สับสน)" val="มีปัญหาสุขภาพจิต การกิน และการขับถ่าย" color="#dc2626" />
-                <ScoreRow label="C2 (เคลื่อนที่ได้ แต่สับสน)" val="มีปัญหาสุขภาพจิต การกิน และการขับถ่าย อย่างมาก" color="#dc2626" />
-                <ScoreRow label="I3 (ติดเตียง)" val="มีปัญหาการเคลื่อนที่" color="#b45309" />
-                <ScoreRow label="I2 (ติดเตียง)" val="มีปัญหาการเคลื่อนที่และการกินอาหาร" color="#dc2626" />
-                <ScoreRow label="I1 (ติดเตียง)" val="มีปัญหาการเคลื่อนที่และการกินอาหารอย่างมาก" color="#991b1b" />
-              </div>
-              <WarnBadge>กลุ่มภาวะพึ่งพิง สปสช.: B3 = กลุ่ม 1 · C2 - C4 = กลุ่ม 2 · I3 = กลุ่ม 3 · I1 - I2 = กลุ่ม 4 (B4 - B5 ไม่เข้าเกณฑ์ภาวะพึ่งพิง)</WarnBadge>
             </CriteriaBlock>
       </>
     ),

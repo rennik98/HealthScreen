@@ -7,10 +7,10 @@ const Cross = ({ s = 14, c = 'var(--mint-primary)' }) => (
   </svg>
 );
 
-// Theme สีชมพูเข้ม สำหรับการประเมินภาวะพึ่งพิง TAI
-const TAI_COLOR = '#be185d';
-const TAI_BG = '#fdf2f8';
-const TAI_BORDER = '#fbcfe8';
+// Theme สีคราม ให้ตรงกับหมวด "สมรรถนะเพื่อการดูแล" ที่ TAI สังกัดอยู่
+const TAI_COLOR = '#4f46e5';
+const TAI_BG = '#eef0fe';
+const TAI_BORDER = '#c3c6f7';
 
 const Section = ({ title, desc, children }) => (
   <div style={{ background: 'white', border: `1.5px solid ${TAI_COLOR}33`, borderRadius: 20, padding: '22px 18px', boxShadow: 'var(--shadow-sm)', position: 'relative', overflow: 'hidden', marginBottom: 16 }}>
@@ -157,7 +157,7 @@ export default function TAIQuiz({ onBack, onComplete }) {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(253,242,248,0.9)', backdropFilter: 'blur(18px)', borderBottom: `1px solid ${TAI_BORDER}`, padding: '0 16px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(238,240,254,0.9)', backdropFilter: 'blur(18px)', borderBottom: `1px solid ${TAI_BORDER}`, padding: '0 16px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <button onClick={handleBack} style={{ background: 'none', border: 'none', color: 'var(--mint-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>← กลับ</button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Cross s={14} c={TAI_COLOR} /><span style={{ fontSize: 14, fontWeight: 700, color: 'var(--mint-text)' }}>ประเมินภาวะพึ่งพิง (TAI)</span></div>
         <div style={{ width: 40 }} />
@@ -168,7 +168,7 @@ export default function TAIQuiz({ onBack, onComplete }) {
             <RadioGroup key={d.key} question={`${d.title} (${d.en})`} options={d.options} val={ans[d.key]} onChange={(v) => setValue(d.key, v)} />
           ))}
         </Section>
-        <button onClick={handleFinish} style={{ width: '100%', padding: 14, borderRadius: 13, fontSize: 14, fontWeight: 700, background: `linear-gradient(135deg,${TAI_COLOR},#9d174d)`, color: 'white', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(190, 24, 93, 0.3)' }}>
+        <button onClick={handleFinish} style={{ width: '100%', padding: 14, borderRadius: 13, fontSize: 14, fontWeight: 700, background: `linear-gradient(135deg,${TAI_COLOR},#3730a3)`, color: 'white', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(79, 70, 229, 0.3)' }}>
           บันทึกและดูผลการประเมิน →
         </button>
       </div>

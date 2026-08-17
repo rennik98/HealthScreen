@@ -147,7 +147,7 @@ const PatientForm = ({ quizType, onConfirm, onCancel, prefill }) => {
     knee:    { label: 'การคัดกรองข้อเข่าเสื่อม', color: '#ea580c', grad: 'linear-gradient(135deg, #ea580c, #c2410c)', icon: '🦵', bg: '#fff7ed' },
     depress: { label: 'ภาวะซึมเศร้า (2Q/9Q)',color: '#e11d48',            grad: 'linear-gradient(135deg, #e11d48, #be123c)',                              icon: '❤️‍🩹', bg: '#fff1f2' },
     suicide: { label: 'ความเสี่ยงฆ่าตัวตาย (8Q)',color: '#dc2626',        grad: 'linear-gradient(135deg, #dc2626, #991b1b)',                              icon: '🆘', bg: '#fef2f2' },
-    tai:     { label: 'ภาวะพึ่งพิง (TAI)',  color: '#be185d',             grad: 'linear-gradient(135deg, #be185d, #9d174d)',                              icon: '🧓', bg: '#fdf2f8' },
+    tai:     { label: 'ภาวะพึ่งพิง (TAI)',  color: '#4f46e5',             grad: 'linear-gradient(135deg, #4f46e5, #3730a3)',                              icon: '🧓', bg: '#eef0fe' },
     fall:    { label: 'ภาวะหกล้ม (TUGT)',  color: '#059669',             grad: 'linear-gradient(135deg, #059669, #047857)',                              icon: '🚶‍♂️', bg: '#ecfdf5' },
     mna:     { label: 'โภชนาการ (MNA)',    color: '#d97706',             grad: 'linear-gradient(135deg, #d97706, #b45309)',                              icon: '🥗', bg: '#fffbeb' },
     msra:    { label: 'มวลกล้ามเนื้อ (MSRA)',color: '#d97706',             grad: 'linear-gradient(135deg, #d97706, #b45309)',                              icon: '💪', bg: '#fffbeb' },
@@ -227,7 +227,7 @@ const ResultSummaryModal = ({ result, patient, onClose, onViewAll, onContinue })
     'Bone and Joint':    { color: '#ea580c',             grad: 'linear-gradient(135deg, #ea580c, #c2410c)',                              icon: '🦴' },
     'Depression (2Q/9Q)':{ color: '#e11d48',             grad: 'linear-gradient(135deg, #e11d48, #be123c)',                              icon: '❤️‍🩹' },
     'Suicide Risk (8Q)': { color: '#dc2626',             grad: 'linear-gradient(135deg, #dc2626, #991b1b)',                              icon: '🆘' },
-    'TAI (ภาวะพึ่งพิง)':  { color: '#be185d',             grad: 'linear-gradient(135deg, #be185d, #9d174d)',                              icon: '🧓' },
+    'TAI (ภาวะพึ่งพิง)':  { color: '#4f46e5',             grad: 'linear-gradient(135deg, #4f46e5, #3730a3)',                              icon: '🧓' },
     'Fall Risk (TUGT)':  { color: '#059669',             grad: 'linear-gradient(135deg, #059669, #047857)',                              icon: '🚶‍♂️' },
     'MNA (Malnutrition)':{ color: '#d97706',             grad: 'linear-gradient(135deg, #d97706, #b45309)',                              icon: '🥗' },
     'Modified MSRA-5':   { color: '#d97706',             grad: 'linear-gradient(135deg, #d97706, #b45309)',                              icon: '💪' },
@@ -415,8 +415,8 @@ async function loadFromSheets() {
   return [...sheetRows, ...localOnly];
 }
 
-const TYPE_COLORS = { 'Mini-Cog': 'var(--mint-primary)', 'TMSE': 'var(--mint-blue)', 'MoCA': '#8b5cf6', 'MMSE (Mini-Mental State)': '#0d9488', 'Oral Health': '#0891b2', 'Eye Health': '#7c3aed', 'Bone and Joint': '#ea580c', 'Depression (2Q/9Q)': '#e11d48', 'Suicide Risk (8Q)': '#dc2626', 'TAI (ภาวะพึ่งพิง)': '#be185d', 'Fall Risk (TUGT)': '#059669', 'MNA (Malnutrition)': '#d97706', 'Modified MSRA-5': '#d97706', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#4f46e5', 'Frail Scale (ความเปราะบาง)': '#4f46e5' };
-const TYPE_BG = { 'Mini-Cog': 'var(--mint-primary-xl)', 'TMSE': 'var(--mint-blue-xl)', 'MoCA': '#f3e8ff', 'MMSE (Mini-Mental State)': '#f0fdfa', 'Oral Health': '#ecfeff', 'Eye Health': '#f5f3ff', 'Bone and Joint': '#fff7ed', 'Depression (2Q/9Q)': '#fff1f2', 'Suicide Risk (8Q)': '#fef2f2', 'TAI (ภาวะพึ่งพิง)': '#fdf2f8', 'Fall Risk (TUGT)': '#ecfdf5', 'MNA (Malnutrition)': '#fffbeb', 'Modified MSRA-5': '#fffbeb', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#e0e7ff', 'Frail Scale (ความเปราะบาง)': '#e0e7ff' };
+const TYPE_COLORS = { 'Mini-Cog': 'var(--mint-primary)', 'TMSE': 'var(--mint-blue)', 'MoCA': '#8b5cf6', 'MMSE (Mini-Mental State)': '#0d9488', 'Oral Health': '#0891b2', 'Eye Health': '#7c3aed', 'Bone and Joint': '#ea580c', 'Depression (2Q/9Q)': '#e11d48', 'Suicide Risk (8Q)': '#dc2626', 'TAI (ภาวะพึ่งพิง)': '#4f46e5', 'Fall Risk (TUGT)': '#059669', 'MNA (Malnutrition)': '#d97706', 'Modified MSRA-5': '#d97706', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#4f46e5', 'Frail Scale (ความเปราะบาง)': '#4f46e5' };
+const TYPE_BG = { 'Mini-Cog': 'var(--mint-primary-xl)', 'TMSE': 'var(--mint-blue-xl)', 'MoCA': '#f3e8ff', 'MMSE (Mini-Mental State)': '#f0fdfa', 'Oral Health': '#ecfeff', 'Eye Health': '#f5f3ff', 'Bone and Joint': '#fff7ed', 'Depression (2Q/9Q)': '#fff1f2', 'Suicide Risk (8Q)': '#fef2f2', 'TAI (ภาวะพึ่งพิง)': '#eef0fe', 'Fall Risk (TUGT)': '#ecfdf5', 'MNA (Malnutrition)': '#fffbeb', 'Modified MSRA-5': '#fffbeb', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#e0e7ff', 'Frail Scale (ความเปราะบาง)': '#e0e7ff' };
 
 /** ผู้ใช้มักพิมพ์ HN มาพร้อมคำนำหน้าอยู่แล้ว ("HN-00123") เติมซ้ำจะได้ "HN HN-00123" */
 const fmtHN = (hn) => `HN ${String(hn).replace(/^\s*HN[\s:-]*/i, '')}`;
@@ -846,6 +846,7 @@ export default function App() {
   const functionTests = [
     { key: 'adl',   title: 'กิจวัตรประจำวัน (ADL)', sub: 'ประเมิน 10 ด้าน กลุ่มติดสังคม/บ้าน/เตียง', badge: 'ADL Index', pal: palette.indigo },
     { key: 'frail', title: 'ความเปราะบาง (Frail)',  sub: 'คัดกรองความเปราะบาง Frail Scale 5 ข้อ',   badge: 'FRAIL',     pal: palette.indigo },
+    { key: 'tai',   title: 'ภาวะพึ่งพิง (TAI)',      sub: 'ประเมิน 4 ด้าน จัดกลุ่ม B/C/I และกลุ่ม สปสช.', badge: 'TAI',       pal: palette.indigo },
   ];
   const healthTests = [
     { key: 'oral', title: 'สุขภาพช่องปาก',          sub: 'ประเมินโดยทันตบุคลากร 8 ด้าน',              badge: '8 รายการ',  pal: palette.cyan },
@@ -860,16 +861,15 @@ export default function App() {
   const mentalTests = [
     { key: 'depress', title: 'ภาวะซึมเศร้า (2Q/9Q)', sub: 'คัดกรองด้วย 2Q และประเมินต่อด้วย 9Q',       badge: '2Q, 9Q', pal: palette.rose },
     { key: 'suicide', title: 'ความเสี่ยงฆ่าตัวตาย',   sub: 'ประเมินความเสี่ยงฆ่าตัวตาย (8Q)',            badge: '8Q',     pal: palette.rose },
-    { key: 'tai',     title: 'ภาวะพึ่งพิง (TAI)',      sub: 'ประเมิน 4 ด้าน จัดกลุ่ม B/C/I และกลุ่ม สปสช.', badge: 'TAI',    pal: palette.rose },
   ];
 
   const CATEGORIES = [
     { id: 'cog', title: 'สมรรถภาพสมอง',        sub: 'การรับรู้ ความจำ ความคิด',              tests: cognitiveTests, pal: palette.teal },
     { id: 'nut', title: 'โภชนาการและกล้ามเนื้อ', sub: 'ภาวะขาดสารอาหารและมวลกล้ามเนื้อ',       tests: nutritionTests, pal: palette.amber },
-    { id: 'fun', title: 'สมรรถนะเพื่อการดูแล',   sub: 'ADL กิจวัตรประจำวัน และความเปราะบาง',   tests: functionTests,  pal: palette.indigo },
+    { id: 'fun', title: 'สมรรถนะเพื่อการดูแล',   sub: 'ADL ความเปราะบาง และภาวะพึ่งพิง',   tests: functionTests,  pal: palette.indigo },
     { id: 'gen', title: 'สุขภาพทั่วไป',          sub: 'ช่องปาก สายตา กระดูกและข้อ',            tests: healthTests,    pal: palette.cyan },
     { id: 'syn', title: 'กลุ่มอาการผู้สูงอายุ',    sub: 'แบบคัดกรองความเสี่ยงหกล้ม (TUGT)',      tests: syndromeTests,  pal: palette.green },
-    { id: 'men', title: 'สุขภาพจิต',            sub: 'ภาวะซึมเศร้า ฆ่าตัวตาย และภาวะพึ่งพิง',  tests: mentalTests,    pal: palette.rose },
+    { id: 'men', title: 'สุขภาพจิต',            sub: 'ภาวะซึมเศร้าและความเสี่ยงฆ่าตัวตาย',  tests: mentalTests,    pal: palette.rose },
   ].map(c => ({ ...c, count: c.tests.length }));
 
   return (

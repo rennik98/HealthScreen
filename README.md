@@ -31,6 +31,7 @@
 **🛌 Functional & Frailty**
 * **Barthel ADL Index**: Activities of Daily Living.
 * **Frail Scale**: 5-item frailty screening.
+* **TAI** (Typology of Aged with Illustration): 4-domain dependency screening classifying into 9 subgroups (B5–B3 / C4–C2 / I3–I1) mapped to NHSO long-term care groups 1–4.
 
 **🏥 General Health**
 * **Oral Health Assessment** (8 items).
@@ -43,7 +44,6 @@
 **❤️‍🩹 Mental Health**
 * **Depression**: 2Q (Screening) & 9Q (Severity).
 * **Suicide Risk**: 8Q.
-* **TAI** (Typology of Aged with Illustration): 4-domain dependency screening classifying into 9 subgroups (B5–B3 / C4–C2 / I3–I1) mapped to NHSO long-term care groups 1–4.
 
 ## 🚀 Tech Stack
 
