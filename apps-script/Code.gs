@@ -12,7 +12,7 @@
  * ── การติดตั้ง ────────────────────────────────────────────────
  * 1. Apps Script → Project Settings → Script Properties เพิ่ม
  *      SPREADSHEET_ID = id ของ Google Sheet (ส่วนกลางของ URL)
- *      SHEET_NAME     = ชื่อแท็บ เช่น Result   (ไม่ใส่ = ใช้ "Result")
+ *      SHEET_NAME     = ชื่อแท็บที่เก็บข้อมูล  (ไม่ใส่ = ใช้แท็บแรกของไฟล์)
  * 2. Deploy → New deployment → type: Web app
  *      Execute as        : Me
  *      Who has access    : Anyone            ← ถ้าไม่ใช่ Anyone จะได้หน้า login แทน JSON
@@ -21,13 +21,27 @@
 
 var PROPS = PropertiesService.getScriptProperties();
 
+/**
+ * หาแท็บที่จะอ่าน/เขียน
+ * ไม่ตั้ง SHEET_NAME → ใช้แท็บแรกของไฟล์ (ปลอดภัยกว่าเดาชื่อ)
+ * ตั้งไว้แต่หาไม่เจอ → โยน error พร้อมบอกชื่อแท็บที่มีจริง
+ *
+ * เวอร์ชันก่อนหน้าใช้ ss.insertSheet(name) เวลาหาไม่เจอ ซึ่งทำให้พิมพ์ชื่อผิดแล้ว
+ * ได้แท็บเปล่าใหม่กับข้อมูลว่าง ๆ — ดูเหมือนข้อมูลหายทั้งที่ยังอยู่ครบในแท็บเดิม
+ */
 function getSheet_() {
   var id = PROPS.getProperty('SPREADSHEET_ID');
   if (!id) throw new Error('ยังไม่ได้ตั้ง Script Property: SPREADSHEET_ID');
-  var name = PROPS.getProperty('SHEET_NAME') || 'Result';
   var ss = SpreadsheetApp.openById(id);
+
+  var name = PROPS.getProperty('SHEET_NAME');
+  if (!name) return ss.getSheets()[0];
+
   var sh = ss.getSheetByName(name);
-  if (!sh) sh = ss.insertSheet(name);
+  if (!sh) {
+    var available = ss.getSheets().map(function (s) { return s.getName(); }).join(', ');
+    throw new Error('ไม่พบแท็บชื่อ "' + name + '" — แท็บที่มีในไฟล์นี้: ' + available);
+  }
   return sh;
 }
 

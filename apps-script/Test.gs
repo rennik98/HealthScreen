@@ -24,7 +24,8 @@ function runSelfTest() {
   var check = function (name, ok) { results.push((ok ? '✅ ' : '❌ ') + name); };
 
   try {
-    props.setProperty('SHEET_NAME', tmpName);   // getSheet_() จะสร้างชีทนี้ให้เอง
+    ss.insertSheet(tmpName);                    // getSheet_() ไม่สร้างแท็บให้แล้ว ต้องสร้างเอง
+    props.setProperty('SHEET_NAME', tmpName);
 
     // 1. ชีทว่าง ต้องได้ data: []
     var empty = JSON.parse(doGet().getContent());
@@ -70,6 +71,13 @@ function runSelfTest() {
     // 4. ข้อมูลเสียต้องคืน error ไม่ใช่ throw ออกไป
     var bad = JSON.parse(doPost({ postData: { contents: 'ไม่ใช่ json' } }).getContent());
     check('ข้อมูลพังคืน success:false', bad.success === false);
+
+    // 5. ชื่อแท็บผิดต้องฟ้อง ไม่ใช่สร้างแท็บเปล่าแล้วคืนข้อมูลว่าง
+    props.setProperty('SHEET_NAME', 'แท็บที่ไม่มีอยู่จริง_' + Date.now());
+    var missing = JSON.parse(doGet().getContent());
+    check('ชื่อแท็บผิดแล้วฟ้อง error',
+      missing.success === false && missing.error.indexOf('ไม่พบแท็บ') !== -1);
+    props.setProperty('SHEET_NAME', tmpName);
 
   } finally {
     if (originalName === null) props.deleteProperty('SHEET_NAME');
