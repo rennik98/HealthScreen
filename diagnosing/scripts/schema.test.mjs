@@ -82,8 +82,14 @@ check('breakdown ที่ไม่ใช่ JSON → คืน {}',
   Object.keys(fromSheetRow({ ...legacyRow, [COL.breakdown]: '{ไม่ใช่ json' }).breakdown).length === 0);
 check('แถวว่างเปล่าไม่ throw', fromSheetRow({}).name === '');
 
-// ── 6. วันเวลาต้องแปลงเป็นตัวเลขได้ ไม่งั้นเรียง/กรองตามวันที่พัง ──────────
-check('อ่านวันที่ไทย พ.ศ. ได้',      parseThaiDatetime('28 มิถุนายน 2569 16:47') !== undefined);
+// ── 6. วันเวลา — ต้องเช็ค "ค่าที่ได้" ไม่ใช่แค่ "แปลงได้ไหม" ─────────────
+// เทสต์เดิมเช็คแค่ !== undefined จึงไม่จับกรณีที่แปลงได้แต่ปีเพี้ยน (ขึ้น 3112 บน Safari)
+check('วันที่ไทยได้ค่าตรงเป๊ะ (วัน/เดือน/ปี/เวลา)',
+  parseThaiDatetime('15 สิงหาคม 2569 18:09') === new Date(2026, 7, 15, 18, 9).getTime());
+check('อีกเดือนก็ต้องตรง ไม่ใช่ตกไปเดือนแรก',
+  parseThaiDatetime('28 มิถุนายน 2569 16:47') === new Date(2026, 5, 28, 16, 47).getTime());
+check('วันที่ไทยแบบไม่มีเวลา',
+  parseThaiDatetime('1 มกราคม 2570') === new Date(2027, 0, 1, 0, 0).getTime());
 check('อ่านวันที่ ISO ได้',          parseThaiDatetime('2026-06-28T16:47:00.000Z') !== undefined);
 check('ค่าที่อ่านไม่ออกคืน undefined', parseThaiDatetime('ไม่ใช่วันที่') === undefined);
 check('ค่าว่างคืน undefined',        parseThaiDatetime('') === undefined);
@@ -91,8 +97,13 @@ check('สิงหาคม > มิถุนายน ปีเดียวก
   parseThaiDatetime('15 สิงหาคม 2569 18:09') > parseThaiDatetime('28 มิถุนายน 2569 19:43'));
 check('เวลาในวันเดียวกันเรียงถูก',
   parseThaiDatetime('28 มิถุนายน 2569 19:43') > parseThaiDatetime('28 มิถุนายน 2569 13:51'));
-check('แปลงไปกลับแล้วได้สตริงเดิม',
+check('แปลงไปกลับแล้วได้สตริงเดิม ไม่บวก พ.ศ. ซ้ำ',
   fromSheetRow({ [COL.datetime]: '28 มิถุนายน 2569 16:47' }).datetime === '28 มิถุนายน 2569 16:47');
+check('ISO ที่ปีเป็น พ.ศ. อยู่แล้ว ต้องไม่กลายเป็น 3112',
+  fromSheetRow({ [COL.datetime]: '2569-08-15T18:09:00' }).datetime === '15 สิงหาคม 2569 18:09');
+check('ไม่มีทางแสดงปีเกิน 2600',
+  ['15 สิงหาคม 2569 18:09', '2026-08-15T18:09:00', '2569-08-15T18:09:00']
+    .every(v => Number(fromSheetRow({ [COL.datetime]: v }).datetime.split(' ')[2]) < 2600));
 check('fromSheetRow แนบ timestamp มาให้เรียงได้',
   typeof fromSheetRow({ [COL.datetime]: '28 มิถุนายน 2569 16:47' }).timestamp === 'number');
 

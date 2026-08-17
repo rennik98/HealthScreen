@@ -62,16 +62,21 @@ export function parseThaiDatetime(raw) {
   const s = String(raw ?? '').trim();
   if (!s) return undefined;
 
-  const iso = new Date(s);
-  if (!isNaN(iso)) return iso.getTime();
-
+  // ต้องเช็ครูปแบบไทยก่อน new Date() เสมอ — ตัวแปลวันที่ของแต่ละเบราว์เซอร์ไม่เหมือนกัน
+  // Safari เดา "15 สิงหาคม 2569 18:09" เป็นวันที่ที่ใช้ได้โดยตีปี 2569 เป็น ค.ศ.
+  // (Chrome/Node คืน NaN) ปล่อยให้หลุดไปถึง new Date() เมื่อไหร่ ปีจะเพี้ยนทันที
   const m = s.match(/^(\d{1,2})\s+(\S+)\s+(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
-  if (!m) return undefined;
-  const month = THAI_MONTHS.indexOf(m[2]);
-  if (month === -1) return undefined;
-  let year = Number(m[3]);
-  if (year >= 2400) year -= 543;   // พ.ศ. → ค.ศ.
-  return new Date(year, month, Number(m[1]), Number(m[4] ?? 0), Number(m[5] ?? 0)).getTime();
+  if (m) {
+    const month = THAI_MONTHS.indexOf(m[2]);
+    if (month !== -1) {
+      let year = Number(m[3]);
+      if (year >= 2400) year -= 543;   // พ.ศ. → ค.ศ.
+      return new Date(year, month, Number(m[1]), Number(m[4] ?? 0), Number(m[5] ?? 0)).getTime();
+    }
+  }
+
+  const iso = new Date(s);
+  return isNaN(iso) ? undefined : iso.getTime();
 }
 
 /** Sheets อาจคืนค่าเป็น Date (ISO) หรือสตริงไทยที่แอปเขียนไปเอง — ทำให้เป็นรูปแบบเดียวกัน */
@@ -81,7 +86,9 @@ export function formatThaiDatetime(raw) {
   const ms = parseThaiDatetime(s);
   if (ms === undefined) return s;
   const d = new Date(ms);
-  return `${d.getDate()} ${THAI_MONTHS[d.getMonth()]} ${d.getFullYear() + 543} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  // ปี >= 2400 แปลว่าเป็น พ.ศ. อยู่แล้ว — บวกซ้ำจะได้ 3112 (กันพลาดจากตัวแปลวันที่ที่เพี้ยน)
+  const yr = d.getFullYear();
+  return `${d.getDate()} ${THAI_MONTHS[d.getMonth()]} ${yr >= 2400 ? yr : yr + 543} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 /**
