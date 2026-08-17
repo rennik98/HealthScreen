@@ -18,7 +18,9 @@ function runSelfTest() {
   if (!ssId) throw new Error('ยังไม่ได้ตั้ง Script Property: SPREADSHEET_ID');
 
   var originalName = props.getProperty('SHEET_NAME');
-  var tmpName = 'SELFTEST_' + Date.now();
+  var stamp = Date.now();
+  var tmpName = 'SELFTEST_' + stamp;
+  var testType = 'SELFTEST_TYPE_' + stamp;   // ชื่อแท็บย่อยที่ doPost จะสร้าง — ลบทิ้งใน finally
   var ss = SpreadsheetApp.openById(ssId);
   var results = [];
   var check = function (name, ok) { results.push((ok ? '✅ ' : '❌ ') + name); };
@@ -35,7 +37,7 @@ function runSelfTest() {
     var rec = {
       'ID': 'test-0001',
       'ชื่อ-นามสกุล': 'ทดสอบ ระบบ',
-      'ประเภทแบบทดสอบ': 'TAI (ภาวะพึ่งพิง)',
+      'ประเภทแบบทดสอบ': testType,
       'คะแนนรวม': 14,
       'พบความเสี่ยง': 'ใช่',
       'รายละเอียด (JSON)': '{"TAI กลุ่ม":"C3"}'
@@ -79,11 +81,25 @@ function runSelfTest() {
       missing.success === false && missing.error.indexOf('ไม่พบแท็บ') !== -1);
     props.setProperty('SHEET_NAME', tmpName);
 
+    // 6. แยกชีทรายแบบทดสอบ — ไม่มีแท็บก็สร้าง มีแล้วก็ต่อท้าย ไม่สร้างซ้ำ
+    var sub = ss.getSheetByName(testType);
+    check('สร้างแท็บรายแบบทดสอบให้อัตโนมัติ', sub !== null);
+    if (sub) {
+      check('แท็บย่อยได้ครบทั้ง 2 แถวที่โพสต์ไป', sub.getLastRow() === 3);   // หัวตาราง + 2 แถว
+      check('ข้อมูลในแท็บย่อยตรงกับที่ส่ง',
+        sub.getRange(2, sub.getRange(1, 1, 1, sub.getLastColumn()).getValues()[0].indexOf('ID') + 1)
+          .getValue() === 'test-0001');
+    }
+    check('ชีทรวมยังมีข้อมูลครบเหมือนเดิม',
+      JSON.parse(doGet().getContent()).data.length === 2);
+
   } finally {
     if (originalName === null) props.deleteProperty('SHEET_NAME');
     else props.setProperty('SHEET_NAME', originalName);
-    var tmp = ss.getSheetByName(tmpName);
-    if (tmp) ss.deleteSheet(tmp);
+    [tmpName, testType].forEach(function (n) {
+      var s = ss.getSheetByName(n);
+      if (s) ss.deleteSheet(s);
+    });
   }
 
   var failed = results.filter(function (r) { return r.indexOf('❌') === 0; }).length;

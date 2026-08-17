@@ -76,6 +76,16 @@ header row and appends any column it hasn't seen before. **Adding a screening to
 new field never requires editing or redeploying it** — the schema lives entirely in
 [`diagnosing/src/shared/sheetSchema.js`](diagnosing/src/shared/sheetSchema.js).
 
+Every result is written twice: to the combined tab (`SHEET_NAME`, or the first tab) which
+the app reads from, and to a per-test tab named after the screening tool, created on first
+use. Set `SPLIT_BY_COLUMN` to change which column names those tabs, or to `-` to keep the
+combined tab only. Run `rebuildPerTestSheets` once from the editor to fan existing rows
+out into per-test tabs.
+
+Both endpoints can be exercised without deploying: `npm test` runs the schema round-trip
+and an Apps Script simulation, and `apps-script/Test.gs` runs `runSelfTest` against a
+throwaway tab inside the editor.
+
 ### 3. Environment Variables
 Create a `.env` file inside `diagnosing/` (copy `.env.example`) and add your Web App URL:
 

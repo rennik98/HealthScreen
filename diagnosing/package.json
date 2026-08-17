@@ -8,7 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:schema": "node scripts/schema.test.mjs"
+    "test": "npm run test:schema && npm run test:appsscript",
+    "test:schema": "node scripts/schema.test.mjs",
+    "test:appsscript": "node scripts/appsscript.test.mjs"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.1",
