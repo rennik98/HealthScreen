@@ -24,6 +24,9 @@ export const COL = {
   breakdown:  'รายละเอียด (JSON)',
 };
 
+/** คอลัมน์หลักที่ทุกแบบทดสอบใช้ร่วมกัน — คอลัมน์อื่นในแถวถือเป็นคำตอบรายข้อ */
+const FIXED_COLUMNS = new Set(Object.values(COL));
+
 /** สร้าง id ที่ไม่ซ้ำ ใช้จับคู่รายการระหว่างเครื่องกับ Sheets */
 export function newResultId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -32,7 +35,7 @@ export function newResultId() {
 
 /** record ของแอป → object ที่ key เป็นชื่อหัวคอลัมน์ (ใช้ตอน POST) */
 export function toSheetRow(r) {
-  return {
+  const row = {
     [COL.id]:         r.id ?? '',
     [COL.hn]:         r.hn ?? '',
     [COL.name]:       r.name ?? '',
@@ -49,6 +52,16 @@ export function toSheetRow(r) {
     [COL.duration]:   r.duration ?? 0,
     [COL.breakdown]:  JSON.stringify(r.breakdown ?? {}),
   };
+
+  // กระจายคำตอบรายข้อออกเป็นคอลัมน์ละ 1 ข้อ เพื่อให้อ่าน/ทำรายงานใน Sheets ได้ตรง ๆ
+  // Apps Script สร้างคอลัมน์ที่ยังไม่มีให้เอง แต่ละแบบทดสอบจึงได้เฉพาะคอลัมน์ของข้อตัวเอง
+  for (const [key, value] of Object.entries(r.breakdown ?? {})) {
+    const name = String(key).trim();
+    if (!name || FIXED_COLUMNS.has(name)) continue;   // อย่าให้ทับคอลัมน์หลัก
+    row[name] = value ?? '';
+  }
+
+  return row;
 }
 
 const THAI_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
@@ -103,6 +116,18 @@ function legacyImpaired(resultText) {
   return LEGACY_IMPAIRED_KEYWORDS.some(k => resultText.includes(k));
 }
 
+/** ประกอบคำตอบรายข้อจากคอลัมน์ที่ไม่ใช่คอลัมน์หลัก (ใช้เมื่อไม่มีคอลัมน์ JSON) */
+function breakdownFromColumns(row) {
+  const out = {};
+  for (const [key, value] of Object.entries(row)) {
+    const name = String(key).trim();
+    if (!name || FIXED_COLUMNS.has(name)) continue;
+    if (value === '' || value === null || value === undefined) continue;
+    out[name] = value;
+  }
+  return out;
+}
+
 function safeParseBreakdown(raw) {
   if (!raw) return {};
   if (typeof raw === 'object') return raw;
@@ -118,6 +143,7 @@ function safeParseBreakdown(raw) {
 export function fromSheetRow(row) {
   const resultText = String(row[COL.resultText] ?? '');
   const impairedCell = String(row[COL.impaired] ?? '').trim();
+  const breakdown = safeParseBreakdown(row[COL.breakdown]);
   return {
     id:         String(row[COL.id] ?? ''),
     hn:         String(row[COL.hn] ?? ''),
@@ -134,6 +160,7 @@ export function fromSheetRow(row) {
     // เก็บ epoch ไว้ด้วย ไม่งั้นเรียง/กรองตามวันที่ไม่ได้ (แถวจาก Sheets ไม่มี timestamp)
     timestamp:  parseThaiDatetime(row[COL.datetime]),
     duration:   Number(row[COL.duration]) || 0,
-    breakdown:  safeParseBreakdown(row[COL.breakdown]),
+    // คอลัมน์ JSON เป็นหลัก ถ้าว่าง/ถูกลบ ค่อยประกอบจากคอลัมน์รายข้อแทน
+    breakdown:  Object.keys(breakdown).length ? breakdown : breakdownFromColumns(row),
   };
 }

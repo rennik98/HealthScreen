@@ -107,6 +107,44 @@ check('ไม่มีทางแสดงปีเกิน 2600',
 check('fromSheetRow แนบ timestamp มาให้เรียงได้',
   typeof fromSheetRow({ [COL.datetime]: '28 มิถุนายน 2569 16:47' }).timestamp === 'number');
 
+// ── 7. คำตอบรายข้อต้องแตกเป็นคอลัมน์ละข้อ ────────────────────────────
+const s7 = makeSheet();
+const withAnswers = {
+  ...record, id: 'q-1',
+  breakdown: {
+    'TAI-1. การเคลื่อนที่ (Motility)': '3 – เดินทางราบได้ โดยต้องช่วย',
+    'TAI-2. สุขภาพจิต (Mental)': '2 – มีปัญหาด้านการรับรู้',
+    'TAI กลุ่ม': 'C3',
+  },
+};
+s7.doPost(toSheetRow(withAnswers));
+check('มีคอลัมน์แยกของแต่ละข้อในชีท',
+  s7.headers().includes('TAI-1. การเคลื่อนที่ (Motility)') &&
+  s7.headers().includes('TAI-2. สุขภาพจิต (Mental)'));
+check('ค่าในคอลัมน์รายข้ออ่านได้ตรง',
+  s7.doGet()[0]['TAI-1. การเคลื่อนที่ (Motility)'] === '3 – เดินทางราบได้ โดยต้องช่วย');
+check('ยังมีคอลัมน์ JSON ไว้เป็นหลักเหมือนเดิม',
+  fromSheetRow(s7.doGet()[0]).breakdown['TAI กลุ่ม'] === 'C3');
+check('คำตอบรายข้อไม่ทับคอลัมน์หลัก',
+  s7.doGet()[0][COL.name] === record.name);
+
+// คีย์ที่ชนชื่อคอลัมน์หลักต้องถูกข้าม ไม่ใช่เขียนทับ
+const s7b = makeSheet();
+s7b.doPost(toSheetRow({ ...record, breakdown: { [COL.name]: 'ค่าปลอม', 'ข้อ 1': 'ก' } }));
+check('คีย์ที่ชนคอลัมน์หลักถูกข้าม', s7b.doGet()[0][COL.name] === record.name);
+check('คีย์อื่นยังถูกเขียนตามปกติ', s7b.doGet()[0]['ข้อ 1'] === 'ก');
+
+// ── 8. ลบคอลัมน์ JSON ทิ้งแล้วต้องยังกู้คำตอบจากคอลัมน์รายข้อได้ ────────
+const flat = {
+  [COL.name]: 'สมชาย', [COL.type]: 'TAI (ภาวะพึ่งพิง)',
+  'TAI-1. การเคลื่อนที่ (Motility)': '3 – เดินทางราบได้ โดยต้องช่วย',
+  'TAI กลุ่ม': 'C3',
+};
+const rebuilt = fromSheetRow(flat).breakdown;
+check('ไม่มีคอลัมน์ JSON ก็ประกอบคำตอบจากคอลัมน์รายข้อได้',
+  rebuilt['TAI กลุ่ม'] === 'C3' && Object.keys(rebuilt).length === 2);
+check('คอลัมน์หลักไม่ถูกนับเป็นคำตอบรายข้อ', rebuilt[COL.name] === undefined);
+
 failures.forEach(f => console.log('  ✗ ' + f));
 console.log(`\n${pass} passed, ${failures.length} failed`);
 process.exit(failures.length ? 1 : 0);
