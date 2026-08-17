@@ -1,94 +1,118 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Lora:ital,wght@0,400;0,600;1,400&family=Sarabun:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Sarabun:wght@400;500;600;700;800&display=swap');
 
+/*
+ * ค่าสีกลางของแอป — ไฟล์แบบทดสอบทั้งหมดอ้างถึงตัวแปรชุดนี้
+ * ปรับค่าที่นี่ที่เดียวแล้วมีผลทั้งแอป จึงไม่เปลี่ยนชื่อตัวแปรเดิม
+ *
+ * รอบนี้ไล่สีให้เข้มขึ้นทั้งชุด ของเดิมอ่อนจนตัวหนังสือรองคอนทราสต์ไม่ผ่าน
+ * (--mint-muted เดิม #7ba99f บนพื้นขาวได้แค่ ~2.4:1 ซึ่งต่ำกว่าเกณฑ์ WCAG AA 4.5:1)
+ */
 :root {
-  --mint-bg:        #f0faf8;
+  --mint-bg:        #f4f8f7;
   --mint-surface:   #ffffff;
-  --mint-surface2:  #f5fdfc;
-  --mint-border:    #c8ece7;
-  --mint-border2:   #dff4f1;
-  --mint-primary:   #0e9f8e;
+  --mint-surface2:  #f7fbfa;
+  --mint-border:    #dceae7;
+  --mint-border2:   #ecf4f2;
+  --mint-primary:   #0d9488;
   --mint-primary-l: #14b8a4;
-  --mint-primary-xl:#e0f7f4;
-  --mint-blue:      #3b82f6;
+  --mint-primary-xl:#e6faf7;
+  /* ใช้กับ "ตัวอักษรเล็ก" สีแบรนด์ — #0d9488 ได้คอนทราสต์ 3.74:1 ผ่านเฉพาะตัวใหญ่
+     ส่วนตัวนี้ 5.47:1 ผ่าน AA ทุกขนาด */
+  --mint-primary-d: #0f766e;
+  --mint-blue:      #2563eb;
   --mint-blue-l:    #93c5fd;
   --mint-blue-xl:   #eff6ff;
   --mint-ice:       #e0f2fe;
-  --mint-text:      #0f2b28;
-  --mint-text2:     #2d6b63;
-  --mint-muted:     #7ba99f;
-  --mint-warn:      #f59e0b;
-  --mint-danger:    #ef4444;
-  --mint-success:   #10b981;
-  --shadow-sm:      0 1px 4px rgba(14,159,142,0.08);
-  --shadow-md:      0 4px 20px rgba(14,159,142,0.12);
-  --shadow-lg:      0 8px 40px rgba(14,159,142,0.16);
+  --mint-text:      #0c2723;
+  --mint-text2:     #3d5f5a;
+  --mint-muted:     #5c7a75;
+  --mint-warn:      #b45309;
+  --mint-danger:    #be123c;
+  --mint-success:   #047857;
+  --shadow-sm:      0 1px 3px rgba(13, 90, 82, 0.06);
+  --shadow-md:      0 4px 16px rgba(13, 90, 82, 0.08);
+  --shadow-lg:      0 12px 32px rgba(13, 90, 82, 0.12);
+  /* ความสูงของแถบแท็บล่างบนมือถือ — main เว้นที่ด้านล่างเท่านี้ */
+  --tabbar-h:       64px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+html { -webkit-text-size-adjust: 100%; }
+
 body {
-  font-family: 'Plus Jakarta Sans', 'Sarabun', sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Sarabun', system-ui, sans-serif;
+  /* ฐาน 16px — ของเดิมตัวหนังสือส่วนใหญ่ 12–13px ซึ่งเล็กไปสำหรับใช้ข้างเตียงผู้ป่วย */
+  font-size: 16px;
   background-color: var(--mint-bg);
   color: var(--mint-text);
   min-height: 100vh;
-  width: 100vw;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Subtle dot grid */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: radial-gradient(circle, rgba(14,159,142,0.12) 1px, transparent 1px);
-  background-size: 28px 28px;
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* Soft top-left wash */
-body::after {
-  content: '';
-  position: fixed;
-  top: -120px;
-  left: -120px;
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(14,159,142,0.08) 0%, transparent 65%);
-  pointer-events: none;
-  z-index: 0;
-}
+/*
+ * เดิมมี dot grid เต็มจอ + radial wash มุมซ้ายบน + ไอคอนกากบาทจาง ๆ ในทุกการ์ด
+ * สามชั้นนี้ทับกันจนพื้นหลังแย่งสายตาไปจากเนื้อหา รอบนี้ตัดออกให้เหลือพื้นเรียบ
+ */
 
 #root { width: 100%; position: relative; z-index: 1; }
 
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.96); }
+  from { opacity: 0; transform: scale(0.97); }
   to   { opacity: 1; transform: scale(1); }
 }
 @keyframes breathe {
-  0%, 100% { transform: scale(1); opacity: 0.7; }
-  50%       { transform: scale(1.08); opacity: 1; }
+  0%, 100% { transform: scale(1);    opacity: 0.7; }
+  50%      { transform: scale(1.08); opacity: 1; }
 }
 
-.fade-up   { animation: fadeUp  0.45s ease both; }
-.fade-up-1 { animation: fadeUp  0.45s ease 0.08s both; }
-.fade-up-2 { animation: fadeUp  0.45s ease 0.16s both; }
-.fade-up-3 { animation: fadeUp  0.45s ease 0.24s both; }
-.scale-in  { animation: scaleIn 0.35s ease both; }
+.fade-up   { animation: fadeUp  0.4s ease both; }
+.fade-up-1 { animation: fadeUp  0.4s ease 0.06s both; }
+.fade-up-2 { animation: fadeUp  0.4s ease 0.12s both; }
+.fade-up-3 { animation: fadeUp  0.4s ease 0.18s both; }
+.scale-in  { animation: scaleIn 0.3s ease both; }
 
-::-webkit-scrollbar { width: 5px; }
+/* เคารพการตั้งค่าลดการเคลื่อนไหวของระบบ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* การ์ดยกตัวตอน hover เฉพาะเครื่องที่มีเมาส์จริง — บนมือถือ hover ค้างทำให้การ์ดดูค้าง */
+@media (hover: hover) {
+  .lift { transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
+  .lift:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+}
+.lift:active { transform: scale(0.985); }
+
+/*
+ * ของที่ลอยอยู่มุมล่าง (toast, ตัวแจ้งกำลังบันทึก)
+ * บนมือถือต้องยกให้พ้นแถบแท็บล่าง ไม่งั้นบังไอคอนจนกดไม่ถูก
+ */
+.bottom-dock { position: fixed; bottom: 24px; }
+@media (max-width: 767px) {
+  .bottom-dock {
+    bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 12px);
+    left: 12px;
+    right: 12px;
+  }
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--mint-bg); }
 ::-webkit-scrollbar-thumb { background: var(--mint-border); border-radius: 3px; }
 
 @media print {
-  body::before, body::after { display: none; }
   nav, footer, .no-print { display: none !important; }
-  body { background: white; }
+  body { background: white; font-size: 12px; }
   #root { background: white; }
   main { padding: 0 !important; max-width: 100% !important; }
   table { font-size: 11px; }

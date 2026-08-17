@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { saveLocalResult, loadLocalResults } from './shared/quizStorage';
 import { toSheetPayload, fromSheetRow, newResultId, parseThaiDatetime, COL as SHEET_COL } from './shared/sheetSchema';
+import { ChevronRight, Home, ClipboardList, BookOpen } from 'lucide-react';
+import { CategoryIcon, TestIcon } from './shared/icons';
+import { text, radius, shadow, ui, palette, clamp } from './shared/theme';
+import { useIsCompact } from './shared/useMediaQuery';
 
 const SHEET_ID_COL = SHEET_COL.id;
 import MiniCogQuiz from './MiniCogQuiz';
@@ -33,43 +37,69 @@ const Tag = ({ children, color = 'var(--mint-primary)', bg = 'var(--mint-primary
   </span>
 );
 
-const CategoryCard = ({ icon, title, sub, count, color, bg, onClick }) => (
-  <div onClick={onClick} style={{
-    background: 'white', border: '1.5px solid var(--mint-border)', borderRadius: 24, padding: '20px',
-    cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: 'var(--shadow-sm)',
-    display: 'flex', alignItems: 'center', gap: 16, position: 'relative', overflow: 'hidden'
-  }}
-  onMouseOver={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = color; e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.06)'; }}
-  onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--mint-border)'; e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; }}
-  >
-    <div style={{ position: 'absolute', right: -20, bottom: -20, opacity: 0.05 }}><Cross s={100} c={color} /></div>
-    <div style={{ width: 64, height: 64, borderRadius: 18, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, flexShrink: 0, border: `1px solid ${color}33` }}>
-      {icon}
+/**
+ * การ์ดหมวดหมู่ในหน้าแรก
+ * แถวเดียวจบ ไอคอน–เนื้อหา–ลูกศร กดได้ทั้งใบ สูงอย่างน้อย 88px ให้นิ้วกดง่าย
+ * ชื่อหมวดจำกัด 1 บรรทัด คำอธิบาย 2 บรรทัด การ์ดในกริดจึงสูงเท่ากันเสมอ
+ */
+const CategoryCard = ({ id, title, sub, count, pal, onClick }) => (
+  <button onClick={onClick} className="lift" style={{
+    background: 'white', border: `1.5px solid ${ui.border}`, borderRadius: radius.xl,
+    padding: '18px 16px', cursor: 'pointer', boxShadow: shadow.sm, textAlign: 'left',
+    display: 'flex', alignItems: 'center', gap: 14, width: '100%', minHeight: 88,
+  }}>
+    <div style={{
+      width: 56, height: 56, borderRadius: radius.lg, background: pal.tint,
+      border: `1px solid ${pal.line}`, display: 'flex', alignItems: 'center',
+      justifyContent: 'center', flexShrink: 0, color: pal.base,
+    }}>
+      <CategoryIcon id={id} size={28} strokeWidth={1.8} />
     </div>
-    <div style={{ flex: 1 }}>
-      <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--mint-text)', marginBottom: 4 }}>{title}</h3>
-      <p style={{ fontSize: 13, color: 'var(--mint-muted)', lineHeight: 1.4, marginBottom: 8 }}>{sub}</p>
-      <span style={{ fontSize: 11, fontWeight: 700, color, background: bg, padding: '4px 10px', borderRadius: 20, border: `1px solid ${color}33` }}>{count} แบบทดสอบ</span>
+
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <h3 style={{ ...text.h3, color: ui.text, marginBottom: 3, ...clamp(1) }}>{title}</h3>
+      <p style={{ ...text.small, color: ui.muted, marginBottom: 8, ...clamp(2) }}>{sub}</p>
+      <span style={{
+        ...text.label, color: pal.deep, background: pal.tint,
+        border: `1px solid ${pal.line}`, padding: '3px 9px', borderRadius: radius.pill,
+        display: 'inline-block',
+      }}>{count} แบบทดสอบ</span>
     </div>
-    <div style={{ color: 'var(--mint-border2)', fontSize: 24, paddingRight: 8 }}>→</div>
-  </div>
+
+    <ChevronRight size={22} strokeWidth={2.2} style={{ color: pal.base, flexShrink: 0 }} />
+  </button>
 );
 
-const TestCard = ({ icon, title, sub, badge, bColor, bBg, onClick }) => (
-  <div onClick={onClick} style={{ background: 'white', border: '1.5px solid var(--mint-border)', borderRadius: 22, padding: '22px 20px', cursor: 'pointer', transition: 'all 0.22s ease', boxShadow: 'var(--shadow-sm)', display: 'flex', flexDirection: 'column', gap: 12, position: 'relative', overflow: 'hidden' }}
-    onMouseOver={e => { e.currentTarget.style.boxShadow = 'var(--shadow-lg)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.borderColor = bColor; }}
-    onMouseOut={e  => { e.currentTarget.style.boxShadow = 'var(--shadow-sm)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--mint-border)'; }}>
-    <div style={{ position: 'absolute', right: -10, bottom: -10, opacity: 0.04 }}><Cross s={80} c={bColor} /></div>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-      <div style={{ width: 44, height: 44, borderRadius: 13, background: bBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{icon}</div>
-      <Tag color={bColor} bg={bBg}>{badge}</Tag>
+/** การ์ดแบบทดสอบในหน้าหมวด — โครงเดียวกับการ์ดหมวดเพื่อให้จังหวะสายตาต่อเนื่อง */
+const TestCard = ({ testKey, title, sub, badge, pal, onClick }) => (
+  <button onClick={onClick} className="lift" style={{
+    background: 'white', border: `1.5px solid ${ui.border}`, borderRadius: radius.xl,
+    padding: '18px 16px', cursor: 'pointer', boxShadow: shadow.sm, textAlign: 'left',
+    display: 'flex', flexDirection: 'column', gap: 12, width: '100%', height: '100%',
+  }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{
+        width: 48, height: 48, borderRadius: radius.md, background: pal.tint,
+        border: `1px solid ${pal.line}`, display: 'flex', alignItems: 'center',
+        justifyContent: 'center', flexShrink: 0, color: pal.base,
+      }}>
+        <TestIcon testKey={testKey} size={24} strokeWidth={1.8} />
+      </div>
+      <h3 style={{ ...text.h3, color: ui.text, flex: 1, minWidth: 0, ...clamp(2) }}>{title}</h3>
     </div>
-    <div>
-      <h3 style={{ fontSize: 17, fontWeight: 800, color: 'var(--mint-text)', marginBottom: 5 }}>{title}</h3>
-      <p style={{ fontSize: 13, color: 'var(--mint-muted)', lineHeight: 1.6 }}>{sub}</p>
+
+    <p style={{ ...text.small, color: ui.muted, flex: 1, ...clamp(2) }}>{sub}</p>
+
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+      <span style={{
+        ...text.label, color: pal.deep, background: pal.tint,
+        border: `1px solid ${pal.line}`, padding: '3px 9px', borderRadius: radius.pill,
+      }}>{badge}</span>
+      <span style={{ ...text.small, fontWeight: 700, color: pal.deep, display: 'flex', alignItems: 'center', gap: 4 }}>
+        เริ่มทดสอบ <ChevronRight size={16} strokeWidth={2.5} />
+      </span>
     </div>
-    <div style={{ fontSize: 13, fontWeight: 700, color: bColor, display: 'flex', alignItems: 'center', gap: 5 }}>เริ่มทดสอบ <span>→</span></div>
-  </div>
+  </button>
 );
 
 const CriteriaBlock = ({ title, color, children }) => (
@@ -103,7 +133,7 @@ const Toast = ({ message, type = 'success', onClose }) => {
   useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, [onClose]);
   const cfg = { success: { bg: '#f0fdf9', border: '#6ee7d5', text: '#065f46', icon: '✅' }, error: { bg: '#fff1f1', border: '#fca5a5', text: '#dc2626', icon: '❌' }, info: { bg: 'var(--mint-blue-xl)', border: 'var(--mint-blue-l)', text: 'var(--mint-blue)', icon: 'ℹ️' } }[type];
   return (
-    <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 999, background: cfg.bg, border: `1.5px solid ${cfg.border}`, borderRadius: 14, padding: '12px 18px', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', gap: 10, animation: 'scaleIn 0.25s ease both', maxWidth: 340 }}>
+    <div className="bottom-dock" style={{ right: 24, zIndex: 999, background: cfg.bg, border: `1.5px solid ${cfg.border}`, borderRadius: 14, padding: '12px 18px', boxShadow: '0 8px 30px rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', gap: 10, animation: 'scaleIn 0.25s ease both', maxWidth: 340 }}>
       <span style={{ fontSize: 16 }}>{cfg.icon}</span><p style={{ fontSize: 13, fontWeight: 600, color: cfg.text, flex: 1 }}>{message}</p>
       <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: cfg.text, opacity: 0.5 }}>×</button>
     </div>
@@ -407,6 +437,44 @@ async function loadFromSheets() {
 const TYPE_COLORS = { 'Mini-Cog': 'var(--mint-primary)', 'TMSE': 'var(--mint-blue)', 'MoCA': '#8b5cf6', 'MMSE (Mini-Mental State)': '#0d9488', 'Oral Health': '#0891b2', 'Eye Health': '#7c3aed', 'Bone and Joint': '#ea580c', 'Depression (2Q/9Q)': '#e11d48', 'Suicide Risk (8Q)': '#dc2626', 'TAI (ภาวะพึ่งพิง)': '#be185d', 'Fall Risk (TUGT)': '#059669', 'MNA (Malnutrition)': '#d97706', 'Modified MSRA-5': '#d97706', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#4f46e5', 'Frail Scale (ความเปราะบาง)': '#4f46e5' };
 const TYPE_BG = { 'Mini-Cog': 'var(--mint-primary-xl)', 'TMSE': 'var(--mint-blue-xl)', 'MoCA': '#f3e8ff', 'MMSE (Mini-Mental State)': '#f0fdfa', 'Oral Health': '#ecfeff', 'Eye Health': '#f5f3ff', 'Bone and Joint': '#fff7ed', 'Depression (2Q/9Q)': '#fff1f2', 'Suicide Risk (8Q)': '#fef2f2', 'TAI (ภาวะพึ่งพิง)': '#fdf2f8', 'Fall Risk (TUGT)': '#ecfdf5', 'MNA (Malnutrition)': '#fffbeb', 'Modified MSRA-5': '#fffbeb', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#e0e7ff', 'Frail Scale (ความเปราะบาง)': '#e0e7ff' };
 
+const NAV_ITEMS = [
+  { key: 'home',    label: 'หน้าหลัก',   Icon: Home },
+  { key: 'results', label: 'ผลประเมิน',  Icon: ClipboardList },
+  { key: 'about',   label: 'เกณฑ์',      Icon: BookOpen },
+];
+
+/** แถบแท็บล่างสำหรับมือถือ — ตำแหน่งที่นิ้วโป้งถึงง่ายที่สุดขณะถือเครื่องมือเดียว */
+const BottomTabBar = ({ tab, onChange, badge }) => (
+  <nav className="no-print" style={{
+    position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 60,
+    height: 'var(--tabbar-h)', paddingBottom: 'env(safe-area-inset-bottom)',
+    background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(18px)',
+    borderTop: `1px solid ${ui.border}`, display: 'flex', alignItems: 'stretch',
+  }}>
+    {NAV_ITEMS.map(({ key, label, Icon }) => {
+      const on = tab === key;
+      return (
+        <button key={key} onClick={() => onChange(key)} style={{
+          flex: 1, border: 'none', background: 'none', cursor: 'pointer',
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', gap: 3, position: 'relative',
+          color: on ? 'var(--mint-primary-d)' : ui.muted,
+        }}>
+          <Icon size={23} strokeWidth={on ? 2.4 : 1.9} />
+          <span style={{ fontSize: 11, fontWeight: on ? 800 : 600 }}>{label}</span>
+          {key === 'results' && badge > 0 && (
+            <span style={{
+              position: 'absolute', top: 6, left: 'calc(50% + 8px)', minWidth: 18, height: 18,
+              padding: '0 5px', borderRadius: radius.pill, background: ui.warn, color: 'white',
+              fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>{badge > 99 ? '99+' : badge}</span>
+          )}
+        </button>
+      );
+    })}
+  </nav>
+);
+
 const ResultsPage = ({ results, onExport, onRefresh, onSyncPending, loading, syncing }) => {
   const [searchTerm,    setSearchTerm]    = useState('');
   const [filterType,    setFilterType]    = useState('All');
@@ -605,6 +673,7 @@ export default function App() {
   const [syncingPending,setSyncingPending]= useState(false);
   const [loadingData,   setLoadingData]   = useState(false);
   const [toast,         setToast]         = useState(null);
+  const isCompact = useIsCompact();
 
   const showToast = (message, type = 'success') => setToast({ message, type });
 
@@ -688,44 +757,45 @@ export default function App() {
   if (quiz === 'adl')     return <FunctionQuiz tool="ADL" patient={patient} onBack={handleBack} onComplete={handleComplete} />;
   if (quiz === 'frail')   return <FunctionQuiz tool="FRAIL" patient={patient} onBack={handleBack} onComplete={handleComplete} />;
 
+  // สีของแต่ละชุดมาจาก palette กลาง ไม่ใช่ hex กระจายในไฟล์อีกต่อไป
   const cognitiveTests = [
-    { key: 'minicog', icon: '⚡', title: 'Mini-Cog™',   sub: 'ทดสอบความจำ 3 คำ + วาดรูปนาฬิกา', badge: '5 คะแนน', bColor: 'var(--mint-primary)', bBg: 'var(--mint-primary-xl)' },
-    { key: 'tmse',    icon: '🧠', title: 'TMSE',         sub: 'Thai Mental State Examination', badge: '30 คะแนน', bColor: 'var(--mint-blue)',    bBg: 'var(--mint-blue-xl)' },
-    { key: 'mmse',    icon: '🧩', title: 'MMSE-Thai',    sub: 'Mini-Mental State Examination', badge: '30 คะแนน', bColor: '#0d9488',             bBg: '#f0fdfa' },
-    { key: 'moca',    icon: '📋', title: 'MoCA',         sub: 'Montreal Cognitive Assessment', badge: '30 คะแนน', bColor: '#8b5cf6',             bBg: '#f3e8ff' },
+    { key: 'minicog', title: 'Mini-Cog™',   sub: 'ทดสอบความจำ 3 คำ + วาดรูปนาฬิกา', badge: '5 คะแนน',  pal: palette.teal },
+    { key: 'tmse',    title: 'TMSE',        sub: 'Thai Mental State Examination',   badge: '30 คะแนน', pal: palette.teal },
+    { key: 'mmse',    title: 'MMSE-Thai',   sub: 'Mini-Mental State Examination',   badge: '30 คะแนน', pal: palette.teal },
+    { key: 'moca',    title: 'MoCA',        sub: 'Montreal Cognitive Assessment',   badge: '30 คะแนน', pal: palette.indigo },
   ];
   const nutritionTests = [
-    { key: 'mna',  icon: '🥗', title: 'ภาวะโภชนาการ (MNA)', sub: 'คัดกรองด้วย MNA Short Form และ Full Form', badge: 'MNA', bColor: '#d97706', bBg: '#fffbeb' },
-    { key: 'msra', icon: '💪', title: 'มวลกล้ามเนื้อ', sub: 'แบบคัดกรอง Modified MSRA-5', badge: 'MSRA-5', bColor: '#d97706', bBg: '#fffbeb' },
+    { key: 'mna',  title: 'ภาวะโภชนาการ (MNA)', sub: 'คัดกรองด้วย MNA Short Form และ Full Form', badge: 'MNA',    pal: palette.amber },
+    { key: 'msra', title: 'มวลกล้ามเนื้อ',       sub: 'แบบคัดกรอง Modified MSRA-5',              badge: 'MSRA-5', pal: palette.amber },
   ];
   const functionTests = [
-    { key: 'adl',   icon: '🛌', title: 'กิจวัตรประจำวัน (ADL)', sub: 'ประเมิน 10 ด้าน กลุ่มติดสังคม/บ้าน/เตียง', badge: 'ADL Index', bColor: '#4f46e5', bBg: '#e0e7ff' },
-    { key: 'frail', icon: '🍂', title: 'ความเปราะบาง (Frail)', sub: 'คัดกรองความเปราะบาง Frail Scale 5 ข้อ', badge: 'FRAIL', bColor: '#4f46e5', bBg: '#e0e7ff' },
+    { key: 'adl',   title: 'กิจวัตรประจำวัน (ADL)', sub: 'ประเมิน 10 ด้าน กลุ่มติดสังคม/บ้าน/เตียง', badge: 'ADL Index', pal: palette.indigo },
+    { key: 'frail', title: 'ความเปราะบาง (Frail)',  sub: 'คัดกรองความเปราะบาง Frail Scale 5 ข้อ',   badge: 'FRAIL',     pal: palette.indigo },
   ];
   const healthTests = [
-    { key: 'oral', icon: '🦷', title: 'สุขภาพช่องปาก',   sub: 'ประเมินโดยทันตบุคลากร 8 ด้าน', badge: '8 รายการ',  bColor: '#0891b2', bBg: '#ecfeff' },
-    { key: 'eye',  icon: '👁️', title: 'สุขภาวะทางตา',    sub: 'ต้อกระจก ต้อหิน จอตาเสื่อม + Snellen Chart', badge: 'ระยะ+ใกล้', bColor: '#7c3aed', bBg: '#f5f3ff' },
-    { key: 'osta', icon: '🦴', title: 'OSTA Index', sub: 'ประเมินความเสี่ยงโรคกระดูกพรุน', badge: 'OSTA', bColor: '#ea580c', bBg: '#fff7ed' },
-    { key: 'frax', icon: '🦴', title: 'FRAX Score', sub: 'โอกาสกระดูกหักใน 10 ปี', badge: 'FRAX', bColor: '#ea580c', bBg: '#fff7ed' },
-    { key: 'knee', icon: '🦵', title: 'การคัดกรองข้อเข่าเสื่อม', sub: 'คัดกรองโรคข้อเข่าเสื่อมทางคลินิก', badge: 'Knee OA', bColor: '#ea580c', bBg: '#fff7ed' },
+    { key: 'oral', title: 'สุขภาพช่องปาก',          sub: 'ประเมินโดยทันตบุคลากร 8 ด้าน',              badge: '8 รายการ',  pal: palette.cyan },
+    { key: 'eye',  title: 'สุขภาวะทางตา',           sub: 'ต้อกระจก ต้อหิน จอตาเสื่อม + Snellen Chart', badge: 'ระยะ+ใกล้', pal: palette.cyan },
+    { key: 'osta', title: 'OSTA Index',            sub: 'ประเมินความเสี่ยงโรคกระดูกพรุน',            badge: 'OSTA',      pal: palette.amber },
+    { key: 'frax', title: 'FRAX Score',            sub: 'โอกาสกระดูกหักใน 10 ปี',                    badge: 'FRAX',      pal: palette.amber },
+    { key: 'knee', title: 'การคัดกรองข้อเข่าเสื่อม', sub: 'คัดกรองโรคข้อเข่าเสื่อมทางคลินิก',          badge: 'Knee OA',   pal: palette.amber },
   ];
   const syndromeTests = [
-    { key: 'fall', icon: '🚶‍♂️', title: 'แบบคัดกรองความเสี่ยงหกล้ม (TUGT)', sub: 'ทดสอบ Timed Up and Go Test จับเวลา', badge: 'TUGT', bColor: '#059669', bBg: '#ecfdf5' },
+    { key: 'fall', title: 'ความเสี่ยงหกล้ม (TUGT)', sub: 'ทดสอบ Timed Up and Go Test จับเวลา', badge: 'TUGT', pal: palette.green },
   ];
   const mentalTests = [
-    { key: 'depress', icon: '❤️‍🩹', title: 'ภาวะซึมเศร้า (2Q/9Q)', sub: 'คัดกรองด้วย 2Q และประเมินต่อด้วย 9Q', badge: '2Q, 9Q', bColor: '#e11d48', bBg: '#fff1f2' },
-    { key: 'suicide', icon: '🆘', title: 'ความเสี่ยงฆ่าตัวตาย', sub: 'ประเมินความเสี่ยงฆ่าตัวตาย (8Q)', badge: '8Q', bColor: '#dc2626', bBg: '#fef2f2' },
-    { key: 'tai', icon: '🧓', title: 'ภาวะพึ่งพิง (TAI)', sub: 'ประเมิน 4 ด้าน จัดกลุ่ม B/C/I และกลุ่ม สปสช.', badge: 'TAI', bColor: '#be185d', bBg: '#fdf2f8' },
+    { key: 'depress', title: 'ภาวะซึมเศร้า (2Q/9Q)', sub: 'คัดกรองด้วย 2Q และประเมินต่อด้วย 9Q',       badge: '2Q, 9Q', pal: palette.rose },
+    { key: 'suicide', title: 'ความเสี่ยงฆ่าตัวตาย',   sub: 'ประเมินความเสี่ยงฆ่าตัวตาย (8Q)',            badge: '8Q',     pal: palette.rose },
+    { key: 'tai',     title: 'ภาวะพึ่งพิง (TAI)',      sub: 'ประเมิน 4 ด้าน จัดกลุ่ม B/C/I และกลุ่ม สปสช.', badge: 'TAI',    pal: palette.rose },
   ];
 
   const CATEGORIES = [
-    { id: 'cog', icon: '🧠', title: 'สมรรถภาพสมอง', sub: 'การรับรู้ ความจำ ความคิด', count: cognitiveTests.length, color: 'var(--mint-primary)', bg: 'var(--mint-primary-xl)', tests: cognitiveTests },
-    { id: 'nut', icon: '🥗', title: 'โภชนาการและกล้ามเนื้อ', sub: 'ภาวะขาดสารอาหารและมวลกล้ามเนื้อ', count: nutritionTests.length, color: '#d97706', bg: '#fffbeb', tests: nutritionTests },
-    { id: 'fun', icon: '🛌', title: 'สมรรถนะผู้สูงอายุเพื่อการดูแล', sub: 'ADL กิจวัตรประจำวัน และความเปราะบาง', count: functionTests.length, color: '#4f46e5', bg: '#e0e7ff', tests: functionTests },
-    { id: 'gen', icon: '🏥', title: 'สุขภาพทั่วไป', sub: 'ช่องปาก สายตา กระดูกและข้อ', count: healthTests.length, color: '#0891b2', bg: '#ecfeff', tests: healthTests },
-    { id: 'syn', icon: '🚶‍♂️', title: 'กลุ่มอาการในผู้สูงอายุ', sub: 'แบบคัดกรองความเสี่ยงหกล้ม (TUGT)', count: syndromeTests.length, color: '#059669', bg: '#ecfdf5', tests: syndromeTests },
-    { id: 'men', icon: '❤️‍🩹', title: 'สุขภาพจิต', sub: 'ภาวะซึมเศร้า ฆ่าตัวตาย และภาวะพึ่งพิง', count: mentalTests.length, color: '#e11d48', bg: '#fff1f2', tests: mentalTests },
-  ];
+    { id: 'cog', title: 'สมรรถภาพสมอง',        sub: 'การรับรู้ ความจำ ความคิด',              tests: cognitiveTests, pal: palette.teal },
+    { id: 'nut', title: 'โภชนาการและกล้ามเนื้อ', sub: 'ภาวะขาดสารอาหารและมวลกล้ามเนื้อ',       tests: nutritionTests, pal: palette.amber },
+    { id: 'fun', title: 'สมรรถนะเพื่อการดูแล',   sub: 'ADL กิจวัตรประจำวัน และความเปราะบาง',   tests: functionTests,  pal: palette.indigo },
+    { id: 'gen', title: 'สุขภาพทั่วไป',          sub: 'ช่องปาก สายตา กระดูกและข้อ',            tests: healthTests,    pal: palette.cyan },
+    { id: 'syn', title: 'กลุ่มอาการผู้สูงอายุ',    sub: 'แบบคัดกรองความเสี่ยงหกล้ม (TUGT)',      tests: syndromeTests,  pal: palette.green },
+    { id: 'men', title: 'สุขภาพจิต',            sub: 'ภาวะซึมเศร้า ฆ่าตัวตาย และภาวะพึ่งพิง',  tests: mentalTests,    pal: palette.rose },
+  ].map(c => ({ ...c, count: c.tests.length }));
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#f8fafc' }}>
@@ -734,28 +804,33 @@ export default function App() {
       {pendingResult && <ResultSummaryModal result={pendingResult} patient={patient} onClose={handleSummaryClose} onViewAll={handleSummaryViewAll} onContinue={handleSummaryContinue} />}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       {saving && (
-        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 500, background: 'white', borderRadius: 14, padding: '10px 20px', boxShadow: '0 8px 30px rgba(0,0,0,0.15)', border: '1px solid var(--mint-border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div className="bottom-dock" style={{ left: '50%', transform: 'translateX(-50%)', zIndex: 500, background: 'white', borderRadius: 14, padding: '10px 20px', boxShadow: '0 8px 30px rgba(0,0,0,0.15)', border: '1px solid var(--mint-border)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <Spinner size={16} /><span style={{ fontSize: 13, fontWeight: 600, color: 'var(--mint-text2)' }}>กำลังบันทึกไปยัง Google Sheets…</span>
         </div>
       )}
 
-      {/* Nav */}
-      <nav style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(18px)', borderBottom: '1px solid var(--mint-border2)', padding: '0 16px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', flexShrink: 0 }} onClick={() => handleTabChange('home')}>
-          <img src={logoDementia} alt="logo" style={{ width: 38, height: 38, borderRadius: 12, boxShadow: '0 4px 12px rgba(14,159,142,0.2)', flexShrink: 0 }}/>
-          <div style={{ display: 'flex', flexDirection: 'column' }}><div style={{ fontSize: 15, fontWeight: 800, color: 'var(--mint-text)', letterSpacing: '0.02em', lineHeight: 1.2 }}>Health<span style={{ color: 'var(--mint-primary)' }}>Screen</span></div><div style={{ fontSize: 9, color: 'var(--mint-muted)', letterSpacing: '0.08em', fontWeight: 700 }}>GERIATRIC CARE</div></div>
-        </div>
-        <div style={{ display: 'flex', gap: 3, background: 'var(--mint-surface2)', borderRadius: 12, padding: 4, border: '1px solid var(--mint-border2)', flexShrink: 0 }}>
-          {[['home','หน้าหลัก'],['results','ผลประเมิน' + (allResults.length > 0 ? ` (${allResults.length})` : '')],['about','เกณฑ์']].map(([key, label]) => (
-            <button key={key} onClick={() => handleTabChange(key)} style={{ padding: '8px 14px', borderRadius: 9, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'all 0.18s', background: tab === key ? 'white' : 'transparent', color: tab === key ? 'var(--mint-primary)' : 'var(--mint-muted)', boxShadow: tab === key ? '0 2px 6px rgba(0,0,0,0.06)' : 'none', position: 'relative', whiteSpace: 'nowrap' }}>
-              {label}{key === 'results' && allResults.length > 0 && tab !== 'results' && <span style={{ position: 'absolute', top: 0, right: 0, width: 8, height: 8, borderRadius: '50%', background: 'var(--mint-warn)', border: '2px solid var(--mint-surface2)' }} />}
-            </button>
-          ))}
-        </div>
+      {/* แถบบน: บนมือถือเหลือแค่โลโก้ ปุ่มย้ายลงแถบล่างให้นิ้วโป้งถึง */}
+      <nav style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(18px)', borderBottom: `1px solid ${ui.border2}`, padding: '0 16px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <button onClick={() => handleTabChange('home')} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', flexShrink: 0, background: 'none', border: 'none', padding: 0 }}>
+          <img src={logoDementia} alt="" style={{ width: 36, height: 36, borderRadius: 11, flexShrink: 0 }}/>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: ui.text, lineHeight: 1.15 }}>Health<span style={{ color: 'var(--mint-primary-d)' }}>Screen</span></div>
+            <div style={{ fontSize: 9, color: ui.muted, letterSpacing: '0.1em', fontWeight: 700 }}>GERIATRIC CARE</div>
+          </div>
+        </button>
+        {!isCompact && (
+          <div style={{ display: 'flex', gap: 4, background: ui.surface2, borderRadius: radius.md, padding: 4, border: `1px solid ${ui.border2}`, flexShrink: 0 }}>
+            {NAV_ITEMS.map(({ key, label }) => (
+              <button key={key} onClick={() => handleTabChange(key)} style={{ padding: '9px 16px', borderRadius: radius.sm, ...text.small, fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'all 0.18s', background: tab === key ? 'white' : 'transparent', color: tab === key ? 'var(--mint-primary-d)' : ui.muted, boxShadow: tab === key ? shadow.sm : 'none', whiteSpace: 'nowrap' }}>
+                {label}{key === 'results' && allResults.length > 0 ? ` (${allResults.length})` : ''}
+              </button>
+            ))}
+          </div>
+        )}
       </nav>
 
       {/* Main */}
-      <main style={{ flex: 1, maxWidth: 1160, margin: '0 auto', width: '100%', padding: '32px 16px' }}>
+      <main style={{ flex: 1, maxWidth: 1160, margin: '0 auto', width: '100%', padding: isCompact ? '20px 14px' : '32px 16px', paddingBottom: isCompact ? 'calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 20px)' : 32 }}>
         {tab === 'home' && (
           <div className="fade-up">
             {batteryPatient && (
@@ -769,16 +844,17 @@ export default function App() {
             )}
             {!selectedCategory ? (
               <>
-                <div style={{ marginBottom: 32, textAlign: 'center' }}>
+                {/* หัวเรื่อง: ชิดซ้ายและเตี้ยลงมากบนมือถือ ของเดิมกินพื้นที่เกือบครึ่งจอก่อนเห็นการ์ดใบแรก */}
+                <div style={{ marginBottom: isCompact ? 20 : 28, textAlign: isCompact ? 'left' : 'center' }}>
                   <Tag><span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--mint-primary)', display: 'inline-block', animation: 'breathe 2.2s ease infinite' }} /> มาตรฐานกระทรวงสาธารณสุข พ.ศ.2564</Tag>
-                  <h1 style={{ fontFamily: "'Lora','Sarabun',serif", fontSize: 'clamp(28px,5vw,42px)', fontWeight: 800, color: 'var(--mint-text)', marginTop: 16, marginBottom: 12 }}>
-                    ประเมินสุขภาพ<span style={{ color: 'var(--mint-primary)' }}>ผู้สูงอายุ</span>
+                  <h1 style={{ ...text.display, color: ui.text, marginTop: 12, marginBottom: 8 }}>
+                    ประเมินสุขภาพ<span style={{ color: 'var(--mint-primary-d)' }}>ผู้สูงอายุ</span>
                   </h1>
-                  <p style={{ fontSize: 15, color: 'var(--mint-muted)', maxWidth: 500, margin: '0 auto', lineHeight: 1.6 }}>
+                  <p style={{ ...text.body, color: ui.muted, maxWidth: 480, margin: isCompact ? 0 : '0 auto' }}>
                     เลือกหมวดหมู่ที่ต้องการประเมิน ระบบจะบันทึกผลและแปลผลอัตโนมัติ
                   </p>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isCompact ? '1fr' : 'repeat(auto-fit, minmax(330px, 1fr))', gap: 14 }}>
                   {CATEGORIES.map(cat => (
                     <CategoryCard key={cat.id} {...cat} onClick={() => setSelectedCategory(cat)} />
                   ))}
@@ -786,19 +862,21 @@ export default function App() {
               </>
             ) : (
               <>
-                <button onClick={() => setSelectedCategory(null)} style={{ background: 'white', border: '1.5px solid var(--mint-border)', padding: '10px 16px', borderRadius: 12, fontSize: 13, fontWeight: 700, color: 'var(--mint-text2)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 24, boxShadow: 'var(--shadow-sm)' }}>
-                  ← กลับไปหน้าหมวดหมู่
+                <button onClick={() => setSelectedCategory(null)} style={{ background: 'white', border: `1.5px solid ${ui.border}`, padding: '11px 16px', borderRadius: radius.md, ...text.small, fontWeight: 700, color: ui.text2, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 16, boxShadow: shadow.sm, minHeight: 44 }}>
+                  <ChevronRight size={16} strokeWidth={2.5} style={{ transform: 'rotate(180deg)' }} /> ทุกหมวดหมู่
                 </button>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24, background: selectedCategory.bg, padding: '24px', borderRadius: 24, border: `1.5px solid ${selectedCategory.color}33` }}>
-                  <div style={{ fontSize: 40 }}>{selectedCategory.icon}</div>
-                  <div>
-                    <h2 style={{ fontSize: 24, fontWeight: 800, color: selectedCategory.color, marginBottom: 4 }}>{selectedCategory.title}</h2>
-                    <p style={{ fontSize: 14, color: 'var(--mint-text2)' }}>กรุณาเลือกแบบทดสอบที่ต้องการ</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, background: selectedCategory.pal.tint, padding: isCompact ? '16px' : '22px', borderRadius: radius.xl, border: `1px solid ${selectedCategory.pal.line}` }}>
+                  <div style={{ width: 52, height: 52, borderRadius: radius.lg, background: 'white', border: `1px solid ${selectedCategory.pal.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: selectedCategory.pal.base }}>
+                    <CategoryIcon id={selectedCategory.id} size={28} strokeWidth={1.8} />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <h2 style={{ ...text.h1, color: selectedCategory.pal.deep, marginBottom: 2 }}>{selectedCategory.title}</h2>
+                    <p style={{ ...text.small, color: ui.text2 }}>เลือกแบบทดสอบที่ต้องการ · {selectedCategory.count} ชุด</p>
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%,300px),1fr))', gap: 16 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isCompact ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14 }}>
                   {selectedCategory.tests.map(t => (
-                    <TestCard key={t.key} {...t} onClick={() => {
+                    <TestCard key={t.key} testKey={t.key} title={t.title} sub={t.sub} badge={t.badge} pal={t.pal} onClick={() => {
                       if (batteryPatient) { setPatient(batteryPatient); setQuiz(t.key); }
                       else setShowForm(t.key);
                     }} />
@@ -1031,10 +1109,15 @@ export default function App() {
         )}
       </main>
 
-      <footer style={{ borderTop: '1px solid var(--mint-border)', padding: '14px 16px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', background: 'white', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Cross s={12} /><span style={{ fontSize: 11, color: 'var(--mint-muted)' }}>HealthScreen — เครื่องมือคัดกรองเบื้องต้นเท่านั้น ไม่ใช่การวินิจฉัยทางการแพทย์</span></div>
-        <span style={{ fontSize: 11, color: 'var(--mint-muted)' }}>อ้างอิง: กระทรวงสาธารณสุข พ.ศ.2564</span>
-      </footer>
+      {/* บนมือถือ footer ซ้อนกับแถบแท็บล่าง จึงแสดงเฉพาะตอนพิมพ์และบนจอใหญ่ */}
+      {!isCompact && (
+        <footer style={{ borderTop: `1px solid ${ui.border}`, padding: '14px 16px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', background: 'white', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Cross s={12} /><span style={{ fontSize: 12, color: ui.muted }}>HealthScreen — เครื่องมือคัดกรองเบื้องต้นเท่านั้น ไม่ใช่การวินิจฉัยทางการแพทย์</span></div>
+          <span style={{ fontSize: 12, color: ui.muted }}>อ้างอิง: กระทรวงสาธารณสุข พ.ศ.2564</span>
+        </footer>
+      )}
+
+      {isCompact && <BottomTabBar tab={tab} onChange={handleTabChange} badge={allResults.length} />}
     </div>
   );
 }
