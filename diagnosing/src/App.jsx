@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { saveLocalResult, loadLocalResults } from './shared/quizStorage';
-import { toSheetRow, fromSheetRow, newResultId, parseThaiDatetime } from './shared/sheetSchema';
+import { toSheetRow, fromSheetRow, newResultId, parseThaiDatetime, COL as SHEET_COL } from './shared/sheetSchema';
+
+const SHEET_ID_COL = SHEET_COL.id;
 import MiniCogQuiz from './MiniCogQuiz';
 import TMSEQuiz from './TMSEQuiz';
 import MoCAQuiz from './MoCAQuiz';
@@ -370,7 +372,16 @@ async function loadFromSheets() {
   const localById  = new Map(local.filter(r => r.id).map(r => [r.id, r]));
   const localByKey = new Map(local.map(r => [resultKey(r), r]));
 
-  const sheetRows = (json.data || []).map(row => {
+  // ถ้าส่งซ้ำแล้วครั้งแรกเข้าไปเงียบ ๆ ชีทจะมีสอง แถวที่ id ซ้ำให้แสดงแค่ครั้งแรก
+  const seenIds = new Set();
+
+  const sheetRows = (json.data || []).filter(row => {
+    const id = String(row[SHEET_ID_COL] ?? '');
+    if (!id) return true;
+    if (seenIds.has(id)) return false;
+    seenIds.add(id);
+    return true;
+  }).map(row => {
     const rec = fromSheetRow(row);
     // จับคู่ด้วย id ก่อน (แม่นยำ) ถอยไปใช้ ชื่อ+แบบทดสอบ+วันเวลา เฉพาะรายการเก่าที่ไม่มี id
     const localMatch = (rec.id && localById.get(rec.id)) || localByKey.get(resultKey(rec));
@@ -396,7 +407,7 @@ async function loadFromSheets() {
 const TYPE_COLORS = { 'Mini-Cog': 'var(--mint-primary)', 'TMSE': 'var(--mint-blue)', 'MoCA': '#8b5cf6', 'MMSE (Mini-Mental State)': '#0d9488', 'Oral Health': '#0891b2', 'Eye Health': '#7c3aed', 'Bone and Joint': '#ea580c', 'Depression (2Q/9Q)': '#e11d48', 'Suicide Risk (8Q)': '#dc2626', 'TAI (ภาวะพึ่งพิง)': '#be185d', 'Fall Risk (TUGT)': '#059669', 'MNA (Malnutrition)': '#d97706', 'Modified MSRA-5': '#d97706', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#4f46e5', 'Frail Scale (ความเปราะบาง)': '#4f46e5' };
 const TYPE_BG = { 'Mini-Cog': 'var(--mint-primary-xl)', 'TMSE': 'var(--mint-blue-xl)', 'MoCA': '#f3e8ff', 'MMSE (Mini-Mental State)': '#f0fdfa', 'Oral Health': '#ecfeff', 'Eye Health': '#f5f3ff', 'Bone and Joint': '#fff7ed', 'Depression (2Q/9Q)': '#fff1f2', 'Suicide Risk (8Q)': '#fef2f2', 'TAI (ภาวะพึ่งพิง)': '#fdf2f8', 'Fall Risk (TUGT)': '#ecfdf5', 'MNA (Malnutrition)': '#fffbeb', 'Modified MSRA-5': '#fffbeb', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#e0e7ff', 'Frail Scale (ความเปราะบาง)': '#e0e7ff' };
 
-const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
+const ResultsPage = ({ results, onExport, onRefresh, onSyncPending, loading, syncing }) => {
   const [searchTerm,    setSearchTerm]    = useState('');
   const [filterType,    setFilterType]    = useState('All');
   const [sortBy,        setSortBy]        = useState('date-desc');
@@ -408,6 +419,7 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
 
   const uniqueTypes = [...new Set(results.map(r => r.type))];
   const mineCount   = results.filter(r => r.mine).length;
+  const pendingCount = results.filter(r => r.unsynced).length;
   // แถวจาก Sheets ไม่มี timestamp ติดมา — ถอดจากข้อความวันที่แทน เพื่อให้เรียง/กรองได้จริง
   const processedResults = results.map((r, i) => ({ ...r, originalIndex: i, sortTime: r.timestamp ?? parseThaiDatetime(r.datetime) }));
 
@@ -453,6 +465,11 @@ const ResultsPage = ({ results, onExport, onRefresh, loading }) => {
           <button onClick={onRefresh} disabled={loading} style={{ padding: '9px 14px', borderRadius: 11, fontSize: 13, fontWeight: 700, background: 'var(--mint-primary-xl)', border: '1px solid var(--mint-border)', color: 'var(--mint-primary)', cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, opacity: loading ? 0.6 : 1 }}>
             {loading ? <Spinner size={14} color="var(--mint-primary)" /> : '🔄'} รีเฟรช
           </button>
+          {pendingCount > 0 && (
+            <button onClick={onSyncPending} disabled={syncing || loading} title="ส่งผลที่บันทึกไว้ในเครื่องขึ้น Google Sheets" style={{ padding: '9px 14px', borderRadius: 11, fontSize: 13, fontWeight: 700, background: '#fff7ed', border: '1px solid #fcd34d', color: '#b45309', cursor: (syncing || loading) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, opacity: (syncing || loading) ? 0.6 : 1 }}>
+              {syncing ? <Spinner size={14} color="#b45309" /> : '⬆️'} ซิงก์ที่ค้าง ({pendingCount})
+            </button>
+          )}
           {results.length > 0 && <>
             <button onClick={() => window.print()} style={{ padding: '9px 14px', borderRadius: 11, fontSize: 13, fontWeight: 700, background: 'white', border: '1.5px solid var(--mint-border)', color: 'var(--mint-text2)', cursor: 'pointer' }}>🖨️ พิมพ์</button>
             <button onClick={onExport} style={{ padding: '9px 16px', borderRadius: 11, fontSize: 13, fontWeight: 700, background: 'linear-gradient(135deg, var(--mint-primary), var(--mint-primary-l))', color: 'white', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(14,159,142,0.28)' }}>📥 ดาวน์โหลด CSV</button>
@@ -585,6 +602,7 @@ export default function App() {
   const [pendingResult, setPendingResult] = useState(null);
   const [allResults,    setAllResults]    = useState([]);
   const [saving,        setSaving]        = useState(false);
+  const [syncingPending,setSyncingPending]= useState(false);
   const [loadingData,   setLoadingData]   = useState(false);
   const [toast,         setToast]         = useState(null);
 
@@ -626,6 +644,25 @@ export default function App() {
       else throw new Error(res.error || 'save failed');
     } catch (err) { setAllResults(prev => [...prev, { ...newRecord, mine: true, unsynced: true }]); showToast('บันทึกไม่สำเร็จ — ตรวจสอบ SCRIPT_URL', 'error'); }
     finally { setSaving(false); }
+  };
+
+  // ดันผลที่บันทึกไว้ในเครื่องแต่ยังไม่ขึ้น Sheets (เช่นตอนบันทึกแล้วเน็ตหลุด/URL ผิด) ขึ้นไปใหม่
+  const handleSyncPending = async () => {
+    const pending = allResults.filter(r => r.unsynced);
+    if (!pending.length || syncingPending) return;
+    setSyncingPending(true);
+    let ok = 0, failed = 0;
+    for (const rec of pending) {
+      try {
+        const res = await saveToSheets(rec);
+        if (res.success) ok++; else failed++;
+      } catch { failed++; }
+    }
+    setSyncingPending(false);
+    if (failed === 0)      showToast(`ซิงก์ขึ้น Google Sheets สำเร็จ ${ok} รายการ ✅`);
+    else if (ok > 0)       showToast(`ซิงก์สำเร็จ ${ok} รายการ · ไม่สำเร็จ ${failed} รายการ`, 'info');
+    else                   showToast(`ซิงก์ไม่สำเร็จทั้ง ${failed} รายการ — ตรวจสอบการเชื่อมต่อ`, 'error');
+    await loadResults();
   };
 
   const handleBack = () => { setQuiz(null); setPatient(null); setBatteryPatient(null); setTab('home'); };
@@ -772,7 +809,7 @@ export default function App() {
           </div>
         )}
 
-        {tab === 'results' && <ResultsPage results={allResults} onExport={() => exportCSV(allResults)} onRefresh={loadResults} loading={loadingData} />}
+        {tab === 'results' && <ResultsPage results={allResults} onExport={() => exportCSV(allResults)} onRefresh={loadResults} onSyncPending={handleSyncPending} loading={loadingData} syncing={syncingPending} />}
 
         {tab === 'about' && (
           <div style={{ maxWidth: 800, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }} className="fade-up">
