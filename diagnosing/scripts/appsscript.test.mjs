@@ -47,15 +47,16 @@ api.rebuildPerTestSheets();
 check('rebuild ไม่ทำข้อมูลซ้ำ (รันซ้ำได้)', ss.getSheetByName('Mini-Cog').getLastRow() === 3);
 check('rebuild เขียน log ผลลัพธ์', logs.length > 0 && logs[0].indexOf('Mini-Cog') !== -1);
 
-// 9. ต่อเนื่องจริง: record ของแอป → toSheetRow → Code.gs → แท็บย่อยได้คอลัมน์รายข้อ
-const { toSheetRow } = await import('../src/shared/sheetSchema.js');
+// 9. ต่อเนื่องจริง: record ของแอป → toSheetPayload → Code.gs
+//    ชีทรวมต้องแคบ (คอลัมน์หลักเท่านั้น) แท็บย่อยต้องได้คอลัมน์รายข้อ
+const { toSheetPayload, COL } = await import('../src/shared/sheetSchema.js');
 const e2e = loadGas({ SPREADSHEET_ID: 'x', SHEET_NAME: 'ชีทรวม' }, ['ชีทรวม']);
-post(e2e.api, toSheetRow({
+post(e2e.api, toSheetPayload({
   id: 'z1', name: 'สมชาย', type: 'TAI (ภาวะพึ่งพิง)', totalScore: 14, maxScore: 20,
   impaired: true, datetime: '17 สิงหาคม 2569 10:37', duration: 0,
   breakdown: { 'TAI-1. การเคลื่อนที่ (Motility)': '3 – เดินทางราบได้ โดยต้องช่วย', 'TAI กลุ่ม': 'C3' },
 }));
-post(e2e.api, toSheetRow({
+post(e2e.api, toSheetPayload({
   id: 'z2', name: 'สมหญิง', type: 'Mini-Cog', totalScore: 4, maxScore: 5,
   impaired: false, datetime: '17 สิงหาคม 2569 10:40', duration: 5,
   breakdown: { 'จำคำได้': '2 คำ', 'วาดนาฬิกา': 'ปกติ' },
@@ -65,13 +66,31 @@ const tabCols = (n) => {
   const sh = e2e.ss.getSheetByName(n);
   return sh ? sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0] : [];
 };
+const fixedCount = Object.keys(COL).length;
+check('ชีทรวมมีแค่คอลัมน์หลัก ไม่บานตามจำนวนข้อ', tabCols('ชีทรวม').length === fixedCount);
+check('ชีทรวมไม่มีคอลัมน์รายข้อของแบบทดสอบใดเลย',
+  !tabCols('ชีทรวม').includes('TAI กลุ่ม') && !tabCols('ชีทรวม').includes('วาดนาฬิกา'));
 check('แท็บ TAI มีคอลัมน์รายข้อของ TAI', tabCols('TAI (ภาวะพึ่งพิง)').includes('TAI-1. การเคลื่อนที่ (Motility)'));
 check('แท็บ TAI ไม่มีคอลัมน์ของแบบทดสอบอื่น', !tabCols('TAI (ภาวะพึ่งพิง)').includes('วาดนาฬิกา'));
 check('แท็บ Mini-Cog มีเฉพาะคอลัมน์ของตัวเอง',
   tabCols('Mini-Cog').includes('วาดนาฬิกา') && !tabCols('Mini-Cog').includes('TAI กลุ่ม'));
-check('ชีทรวมมีคอลัมน์ของทั้งสองแบบทดสอบ',
-  tabCols('ชีทรวม').includes('TAI กลุ่ม') && tabCols('ชีทรวม').includes('วาดนาฬิกา'));
 check('ชีทรวมยังมีแค่ 2 แถว ไม่ซ้ำ', get(e2e.api).data.length === 2);
+check('ชีทรวมยังเก็บคำตอบครบในคอลัมน์ JSON',
+  JSON.parse(get(e2e.api).data[0][COL.breakdown])['TAI กลุ่ม'] === 'C3');
+
+// 10. rebuild ต้องแตก JSON ในชีทรวมกลับเป็นคอลัมน์รายข้อในแท็บย่อย
+const rb = loadGas({ SPREADSHEET_ID: 'x', SHEET_NAME: 'ชีทรวม' }, ['ชีทรวม']);
+post(rb.api, toSheetPayload({
+  id: 'r1', name: 'เก่า', type: 'TMSE', totalScore: 27, maxScore: 30,
+  impaired: false, datetime: '1 มิถุนายน 2569 09:00', duration: 60,
+  breakdown: { 'TMSE ข้อ 1': 'ถูก', 'TMSE ข้อ 2': 'ผิด' },
+}));
+rb.ss.getSheetByName('TMSE').clear();          // จำลองว่าแท็บย่อยยังไม่เคยมีข้อมูล
+rb.api.rebuildPerTestSheets();
+const tmseCols = rb.ss.getSheetByName('TMSE').getRange(1, 1, 1, rb.ss.getSheetByName('TMSE').getLastColumn()).getValues()[0];
+check('rebuild แตก JSON เป็นคอลัมน์รายข้อ',
+  tmseCols.includes('TMSE ข้อ 1') && tmseCols.includes('TMSE ข้อ 2'));
+check('rebuild ไม่แตะชีทรวม', get(rb.api).data.length === 1);
 
 fails.forEach(f => console.log('  ✗ ' + f));
 console.log(`\n${pass} passed, ${fails.length} failed`);

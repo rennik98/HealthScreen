@@ -10,11 +10,17 @@
  * schema ทั้งหมดอยู่ที่ diagnosing/src/shared/sheetSchema.js
  *
  * ── การเก็บข้อมูล ─────────────────────────────────────────────
+ * แอปส่งมาเป็น { row, detail }
+ *   row    = คอลัมน์หลัก ชุดเดียวกันทุกแบบทดสอบ (คำตอบรายข้ออยู่ในคอลัมน์ JSON)
+ *   detail = คำตอบรายข้อ แยกคอลัมน์ละ 1 ข้อ
+ *
  * ทุกรายการถูกบันทึก 2 ที่:
- *   1. ชีทรวม        — แท็บตาม SHEET_NAME (หรือแท็บแรก) เก็บทุกแบบทดสอบรวมกัน
- *                       หน้าเว็บอ่านจากแท็บนี้แท็บเดียว
- *   2. ชีทรายแบบทดสอบ — แท็บที่ชื่อตามค่าในคอลัมน์ SPLIT_BY_COLUMN
+ *   1. ชีทรวม        — แท็บตาม SHEET_NAME (หรือแท็บแรก) · เขียนแค่ row
+ *                       จึงแคบและเท่ากันทุกแบบทดสอบ หน้าเว็บอ่านจากแท็บนี้แท็บเดียว
+ *   2. ชีทรายแบบทดสอบ — แท็บที่ชื่อตามค่าในคอลัมน์ SPLIT_BY_COLUMN · เขียน row + detail
  *                       ไม่มีแท็บนั้นก็สร้างให้ มีอยู่แล้วก็ต่อท้ายเลย
+ *
+ * ส่งมาเป็น object ชั้นเดียวแบบเดิมก็ยังใช้ได้ (ลงเหมือนกันทุกแท็บ)
  *
  * ── การติดตั้ง ────────────────────────────────────────────────
  * 1. Apps Script → Project Settings → Script Properties เพิ่ม
@@ -110,19 +116,29 @@ function doPost(e) {
     var data = JSON.parse(e.postData.contents);
     if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('รูปแบบข้อมูลไม่ถูกต้อง');
 
-    // 1. ชีทรวม — แหล่งข้อมูลหลักที่หน้าเว็บอ่าน ต้องสำเร็จก่อนเสมอ
-    var main = getSheet_();
-    appendRow_(main, data);
+    // รูปแบบ { row, detail }: row ลงทุกแท็บ · detail ลงเฉพาะแท็บรายแบบทดสอบ
+    // ถ้าส่งมาแบบ object ชั้นเดียว (เวอร์ชันเก่า) ก็ใช้ทั้งก้อนกับทุกแท็บเหมือนเดิม
+    var isEnvelope = data.row && typeof data.row === 'object' && !Array.isArray(data.row);
+    var base   = isEnvelope ? data.row : data;
+    var detail = (isEnvelope && data.detail && typeof data.detail === 'object' && !Array.isArray(data.detail))
+      ? data.detail : {};
 
-    // 2. ชีทรายแบบทดสอบ — ไม่มีก็สร้าง มีก็ต่อท้าย
+    // 1. ชีทรวม — แหล่งข้อมูลหลักที่หน้าเว็บอ่าน ต้องสำเร็จก่อนเสมอ (คอลัมน์หลักเท่านั้น)
+    var main = getSheet_();
+    appendRow_(main, base);
+
+    // 2. ชีทรายแบบทดสอบ — คอลัมน์หลัก + คำตอบรายข้อ ไม่มีแท็บก็สร้าง มีก็ต่อท้าย
     //    ถ้าพลาดตรงนี้ยังถือว่าบันทึกสำเร็จ เพราะข้อมูลลงชีทรวมไปแล้ว
     var warning = '';
     try {
       var splitCol = PROPS.getProperty('SPLIT_BY_COLUMN') || 'ประเภทแบบทดสอบ';
       if (splitCol !== '-') {
-        var tabName = sheetNameFor_(data[splitCol]);
+        var tabName = sheetNameFor_(base[splitCol]);
         if (tabName && tabName !== main.getName()) {
-          appendRow_(getOrCreateSheet_(main.getParent(), tabName), data);
+          var full = {};
+          Object.keys(base).forEach(function (k) { full[k] = base[k]; });
+          Object.keys(detail).forEach(function (k) { if (!(k in full)) full[k] = detail[k]; });
+          appendRow_(getOrCreateSheet_(main.getParent(), tabName), full);
         }
       }
     } catch (splitErr) {
@@ -188,14 +204,36 @@ function rebuildPerTestSheets() {
   var idx = headers.indexOf(splitCol);
   if (idx === -1) throw new Error('ไม่พบคอลัมน์ "' + splitCol + '" ในชีทรวม');
 
-  var groups = {};
+  // ชีทรวมเก็บคำตอบรายข้อไว้เป็น JSON ก้อนเดียว — แตกกลับเป็นคอลัมน์ตอนกระจายลงแท็บย่อย
+  var jsonCol = PROPS.getProperty('DETAIL_JSON_COLUMN') || 'รายละเอียด (JSON)';
+  var jsonIdx = headers.indexOf(jsonCol);
+
+  var groups = {};      // ชื่อแท็บ → { cols: [หัวคอลัมน์], rows: [object] }
   values.forEach(function (row) {
     var hasData = row.some(function (c) { return c !== '' && c !== null; });
     if (!hasData) return;
     var name = sheetNameFor_(row[idx]);
     if (!name || name === main.getName()) return;
-    if (!groups[name]) groups[name] = [];
-    groups[name].push(row);
+
+    var obj = {};
+    headers.forEach(function (h, i) { if (h) obj[h] = row[i]; });
+
+    if (jsonIdx !== -1 && row[jsonIdx]) {
+      try {
+        var detail = JSON.parse(String(row[jsonIdx]));
+        if (detail && typeof detail === 'object' && !Array.isArray(detail)) {
+          Object.keys(detail).forEach(function (k) {
+            var key = String(k).trim();
+            if (key && !(key in obj)) obj[key] = detail[k];
+          });
+        }
+      } catch (ignore) {}   // JSON เสีย ก็ข้ามไป เอาเฉพาะคอลัมน์หลัก
+    }
+
+    if (!groups[name]) groups[name] = { cols: headers.slice(), rows: [] };
+    var g = groups[name];
+    Object.keys(obj).forEach(function (k) { if (g.cols.indexOf(k) === -1) g.cols.push(k); });
+    g.rows.push(obj);
   });
 
   var names = Object.keys(groups);
@@ -205,11 +243,17 @@ function rebuildPerTestSheets() {
   }
 
   var report = names.map(function (name) {
+    var g = groups[name];
     var sh = getOrCreateSheet_(ss, name);
     sh.clear();
-    sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
-    sh.getRange(2, 1, groups[name].length, headers.length).setValues(groups[name]);
-    return '  ' + name + ' — ' + groups[name].length + ' แถว';
+    sh.getRange(1, 1, 1, g.cols.length).setValues([g.cols]).setFontWeight('bold');
+    sh.getRange(2, 1, g.rows.length, g.cols.length).setValues(g.rows.map(function (obj) {
+      return g.cols.map(function (c) {
+        var v = obj[c];
+        return (v === undefined || v === null) ? '' : v;
+      });
+    }));
+    return '  ' + name + ' — ' + g.rows.length + ' แถว · ' + g.cols.length + ' คอลัมน์';
   });
 
   Logger.log('กระจายข้อมูลจากชีทรวม "' + main.getName() + '" เสร็จแล้ว\n' + report.join('\n'));

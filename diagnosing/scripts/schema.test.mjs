@@ -6,7 +6,7 @@
  *
  * ถ้าแก้ sheetSchema.js หรือ Code.gs แล้ว ให้รันไฟล์นี้ก่อนเสมอ
  */
-import { toSheetRow, fromSheetRow, COL, newResultId, parseThaiDatetime } from '../src/shared/sheetSchema.js';
+import { toSheetRow, toDetailColumns, toSheetPayload, fromSheetRow, COL, newResultId, parseThaiDatetime } from '../src/shared/sheetSchema.js';
 
 /** จำลอง Sheet + Apps Script: จับคู่ key กับหัวคอลัมน์ ไม่มีก็ต่อคอลัมน์ใหม่ */
 function makeSheet(headers = []) {
@@ -107,8 +107,7 @@ check('ไม่มีทางแสดงปีเกิน 2600',
 check('fromSheetRow แนบ timestamp มาให้เรียงได้',
   typeof fromSheetRow({ [COL.datetime]: '28 มิถุนายน 2569 16:47' }).timestamp === 'number');
 
-// ── 7. คำตอบรายข้อต้องแตกเป็นคอลัมน์ละข้อ ────────────────────────────
-const s7 = makeSheet();
+// ── 7. ชีทรวมต้องมีแค่คอลัมน์หลัก คำตอบรายข้ออยู่ในก้อน detail ────────
 const withAnswers = {
   ...record, id: 'q-1',
   breakdown: {
@@ -117,22 +116,36 @@ const withAnswers = {
     'TAI กลุ่ม': 'C3',
   },
 };
-s7.doPost(toSheetRow(withAnswers));
-check('มีคอลัมน์แยกของแต่ละข้อในชีท',
-  s7.headers().includes('TAI-1. การเคลื่อนที่ (Motility)') &&
-  s7.headers().includes('TAI-2. สุขภาพจิต (Mental)'));
-check('ค่าในคอลัมน์รายข้ออ่านได้ตรง',
-  s7.doGet()[0]['TAI-1. การเคลื่อนที่ (Motility)'] === '3 – เดินทางราบได้ โดยต้องช่วย');
-check('ยังมีคอลัมน์ JSON ไว้เป็นหลักเหมือนเดิม',
+const payload = toSheetPayload(withAnswers);
+check('row มีเฉพาะคอลัมน์หลัก 13 คอลัมน์',
+  Object.keys(payload.row).length === Object.keys(COL).length);
+check('row ไม่มีคอลัมน์รายข้อปนมา',
+  !Object.keys(payload.row).some(k => k.startsWith('TAI-')));
+check('row ยังมีคำตอบครบในรูป JSON',
+  JSON.parse(payload.row[COL.breakdown])['TAI กลุ่ม'] === 'C3');
+check('detail มีคำตอบรายข้อครบทุกข้อ',
+  Object.keys(payload.detail).length === 3 &&
+  payload.detail['TAI-1. การเคลื่อนที่ (Motility)'] === '3 – เดินทางราบได้ โดยต้องช่วย');
+
+// ชีทรวมจำลอง: เขียนเฉพาะ row → คอลัมน์ต้องไม่บาน
+const s7 = makeSheet();
+s7.doPost(payload.row);
+check('ชีทรวมกว้างเท่าคอลัมน์หลักเท่านั้น', s7.headers().length === Object.keys(COL).length);
+check('อ่านคำตอบรายข้อกลับจากชีทรวมได้',
   fromSheetRow(s7.doGet()[0]).breakdown['TAI กลุ่ม'] === 'C3');
-check('คำตอบรายข้อไม่ทับคอลัมน์หลัก',
-  s7.doGet()[0][COL.name] === record.name);
+
+// แท็บย่อยจำลอง: เขียน row + detail → ได้คอลัมน์รายข้อ
+const s7sub = makeSheet();
+s7sub.doPost({ ...payload.row, ...payload.detail });
+check('แท็บย่อยมีคอลัมน์แยกของแต่ละข้อ',
+  s7sub.headers().includes('TAI-1. การเคลื่อนที่ (Motility)'));
+check('ค่าในคอลัมน์รายข้ออ่านได้ตรง',
+  s7sub.doGet()[0]['TAI-1. การเคลื่อนที่ (Motility)'] === '3 – เดินทางราบได้ โดยต้องช่วย');
 
 // คีย์ที่ชนชื่อคอลัมน์หลักต้องถูกข้าม ไม่ใช่เขียนทับ
-const s7b = makeSheet();
-s7b.doPost(toSheetRow({ ...record, breakdown: { [COL.name]: 'ค่าปลอม', 'ข้อ 1': 'ก' } }));
-check('คีย์ที่ชนคอลัมน์หลักถูกข้าม', s7b.doGet()[0][COL.name] === record.name);
-check('คีย์อื่นยังถูกเขียนตามปกติ', s7b.doGet()[0]['ข้อ 1'] === 'ก');
+const collide = toDetailColumns({ breakdown: { [COL.name]: 'ค่าปลอม', 'ข้อ 1': 'ก' } });
+check('คีย์ที่ชนคอลัมน์หลักถูกข้าม', collide[COL.name] === undefined);
+check('คีย์อื่นยังอยู่ครบ', collide['ข้อ 1'] === 'ก');
 
 // ── 8. ลบคอลัมน์ JSON ทิ้งแล้วต้องยังกู้คำตอบจากคอลัมน์รายข้อได้ ────────
 const flat = {

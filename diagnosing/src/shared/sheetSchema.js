@@ -33,9 +33,12 @@ export function newResultId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-/** record ของแอป → object ที่ key เป็นชื่อหัวคอลัมน์ (ใช้ตอน POST) */
+/**
+ * record ของแอป → คอลัมน์หลัก (ชุดเดียวกันทุกแบบทดสอบ)
+ * ชีทรวมเก็บแค่ชุดนี้ คำตอบรายข้ออยู่ในคอลัมน์ JSON ก้อนเดียว
+ */
 export function toSheetRow(r) {
-  const row = {
+  return {
     [COL.id]:         r.id ?? '',
     [COL.hn]:         r.hn ?? '',
     [COL.name]:       r.name ?? '',
@@ -52,16 +55,30 @@ export function toSheetRow(r) {
     [COL.duration]:   r.duration ?? 0,
     [COL.breakdown]:  JSON.stringify(r.breakdown ?? {}),
   };
+}
 
-  // กระจายคำตอบรายข้อออกเป็นคอลัมน์ละ 1 ข้อ เพื่อให้อ่าน/ทำรายงานใน Sheets ได้ตรง ๆ
-  // Apps Script สร้างคอลัมน์ที่ยังไม่มีให้เอง แต่ละแบบทดสอบจึงได้เฉพาะคอลัมน์ของข้อตัวเอง
+/**
+ * คำตอบรายข้อ แยกเป็นคอลัมน์ละ 1 ข้อ — ใช้เฉพาะแท็บรายแบบทดสอบ
+ * ไม่ลงชีทรวม เพราะรวมทุกแบบทดสอบแล้วจะกว้างเกือบ 200 คอลัมน์
+ */
+export function toDetailColumns(r) {
+  const detail = {};
   for (const [key, value] of Object.entries(r.breakdown ?? {})) {
     const name = String(key).trim();
     if (!name || FIXED_COLUMNS.has(name)) continue;   // อย่าให้ทับคอลัมน์หลัก
-    row[name] = value ?? '';
+    detail[name] = value ?? '';
   }
+  return detail;
+}
 
-  return row;
+/**
+ * ก้อนข้อมูลที่ส่งไป Apps Script
+ *   row    → เขียนทุกแท็บ (ชีทรวม + แท็บรายแบบทดสอบ)
+ *   detail → เขียนเฉพาะแท็บรายแบบทดสอบ
+ * สคริปต์ฝั่ง Sheets รู้จักแค่โครงสร้าง 2 ชั้นนี้ ไม่รู้จักชื่อฟิลด์ใด ๆ
+ */
+export function toSheetPayload(r) {
+  return { row: toSheetRow(r), detail: toDetailColumns(r) };
 }
 
 const THAI_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];

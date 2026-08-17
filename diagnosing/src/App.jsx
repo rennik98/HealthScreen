@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { saveLocalResult, loadLocalResults } from './shared/quizStorage';
-import { toSheetRow, fromSheetRow, newResultId, parseThaiDatetime, COL as SHEET_COL } from './shared/sheetSchema';
+import { toSheetPayload, fromSheetRow, newResultId, parseThaiDatetime, COL as SHEET_COL } from './shared/sheetSchema';
 
 const SHEET_ID_COL = SHEET_COL.id;
 import MiniCogQuiz from './MiniCogQuiz';
@@ -348,9 +348,9 @@ const isConfigured = () => SCRIPT_URL !== '' && SCRIPT_URL !== 'YOUR_APPS_SCRIPT
 
 async function saveToSheets(record) {
   if (!isConfigured()) return { success: false, error: 'not configured' };
-  // ส่ง object ที่ key เป็นชื่อหัวคอลัมน์ไปเลย — Apps Script จับคู่/สร้างคอลัมน์ให้เอง
+  // ส่ง { row, detail } ที่ key เป็นชื่อหัวคอลัมน์ไปเลย — Apps Script จับคู่/สร้างคอลัมน์ให้เอง
   // text/plain เพื่อเลี่ยง CORS preflight ที่ Apps Script ตอบไม่ได้
-  const res = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(toSheetRow(record)) });
+  const res = await fetch(SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(toSheetPayload(record)) });
   const text = await res.text();
   try { return JSON.parse(text); } catch { return { success: false, error: text }; }
 }
