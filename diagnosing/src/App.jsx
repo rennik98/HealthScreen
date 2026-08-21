@@ -142,9 +142,9 @@ const PatientForm = ({ quizType, onConfirm, onCancel, prefill }) => {
     moca:    { label: 'MoCA',              color: '#8b5cf6',             grad: 'linear-gradient(135deg, #8b5cf6, #a78bfa)',                              icon: '📋', bg: '#f3e8ff' },
     oral:    { label: 'สุขภาพช่องปาก',    color: '#0891b2',             grad: 'linear-gradient(135deg, #0891b2, #0e7490)',                              icon: '🦷', bg: '#ecfeff' },
     eye:     { label: 'สุขภาวะทางตา',     color: '#7c3aed',             grad: 'linear-gradient(135deg, #7c3aed, #6d28d9)',                              icon: '👁️', bg: '#f5f3ff' },
-    osta:    { label: 'OSTA Index (กระดูกพรุน)',  color: '#ea580c', grad: 'linear-gradient(135deg, #ea580c, #c2410c)', icon: '🦴', bg: '#fff7ed' },
-    frax:    { label: 'FRAX Score (กระดูกหัก)',  color: '#ea580c', grad: 'linear-gradient(135deg, #ea580c, #c2410c)', icon: '🦴', bg: '#fff7ed' },
-    knee:    { label: 'การคัดกรองข้อเข่าเสื่อม', color: '#ea580c', grad: 'linear-gradient(135deg, #ea580c, #c2410c)', icon: '🦵', bg: '#fff7ed' },
+    osta:    { label: 'OSTA Index (กระดูกพรุน)',  color: '#047857', grad: 'linear-gradient(135deg, #047857, #065f46)', icon: '🦴', bg: '#e7f7f1' },
+    frax:    { label: 'FRAX Score (กระดูกหัก)',  color: '#047857', grad: 'linear-gradient(135deg, #047857, #065f46)', icon: '🦴', bg: '#e7f7f1' },
+    knee:    { label: 'การคัดกรองข้อเข่าเสื่อม', color: '#047857', grad: 'linear-gradient(135deg, #047857, #065f46)', icon: '🦵', bg: '#e7f7f1' },
     depress: { label: 'ภาวะซึมเศร้า (2Q/9Q)',color: '#e11d48',            grad: 'linear-gradient(135deg, #e11d48, #be123c)',                              icon: '❤️‍🩹', bg: '#fff1f2' },
     suicide: { label: 'ความเสี่ยงฆ่าตัวตาย (8Q)',color: '#dc2626',        grad: 'linear-gradient(135deg, #dc2626, #991b1b)',                              icon: '🆘', bg: '#fef2f2' },
     tai:     { label: 'ภาวะพึ่งพิง (TAI)',  color: '#4f46e5',             grad: 'linear-gradient(135deg, #4f46e5, #3730a3)',                              icon: '🧓', bg: '#eef0fe' },
@@ -224,7 +224,7 @@ const ResultSummaryModal = ({ result, patient, onClose, onViewAll, onContinue })
     'MoCA':              { color: '#8b5cf6',             grad: 'linear-gradient(135deg, #8b5cf6, #a78bfa)',                              icon: '📋' },
     'Oral Health':       { color: '#0891b2',             grad: 'linear-gradient(135deg, #0891b2, #0e7490)',                              icon: '🦷' },
     'Eye Health':        { color: '#7c3aed',             grad: 'linear-gradient(135deg, #7c3aed, #6d28d9)',                              icon: '👁️' },
-    'Bone and Joint':    { color: '#ea580c',             grad: 'linear-gradient(135deg, #ea580c, #c2410c)',                              icon: '🦴' },
+    'Bone and Joint':    { color: '#047857',             grad: 'linear-gradient(135deg, #047857, #065f46)',                              icon: '🦴' },
     'Depression (2Q/9Q)':{ color: '#e11d48',             grad: 'linear-gradient(135deg, #e11d48, #be123c)',                              icon: '❤️‍🩹' },
     'Suicide Risk (8Q)': { color: '#dc2626',             grad: 'linear-gradient(135deg, #dc2626, #991b1b)',                              icon: '🆘' },
     'TAI (ภาวะพึ่งพิง)':  { color: '#4f46e5',             grad: 'linear-gradient(135deg, #4f46e5, #3730a3)',                              icon: '🧓' },
@@ -415,8 +415,8 @@ async function loadFromSheets() {
   return [...sheetRows, ...localOnly];
 }
 
-const TYPE_COLORS = { 'Mini-Cog': 'var(--mint-primary)', 'TMSE': 'var(--mint-blue)', 'MoCA': '#8b5cf6', 'MMSE (Mini-Mental State)': '#0d9488', 'Oral Health': '#0891b2', 'Eye Health': '#7c3aed', 'Bone and Joint': '#ea580c', 'Depression (2Q/9Q)': '#e11d48', 'Suicide Risk (8Q)': '#dc2626', 'TAI (ภาวะพึ่งพิง)': '#4f46e5', 'Fall Risk (TUGT)': '#059669', 'MNA (Malnutrition)': '#d97706', 'Modified MSRA-5': '#d97706', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#4f46e5', 'Frail Scale (ความเปราะบาง)': '#4f46e5' };
-const TYPE_BG = { 'Mini-Cog': 'var(--mint-primary-xl)', 'TMSE': 'var(--mint-blue-xl)', 'MoCA': '#f3e8ff', 'MMSE (Mini-Mental State)': '#f0fdfa', 'Oral Health': '#ecfeff', 'Eye Health': '#f5f3ff', 'Bone and Joint': '#fff7ed', 'Depression (2Q/9Q)': '#fff1f2', 'Suicide Risk (8Q)': '#fef2f2', 'TAI (ภาวะพึ่งพิง)': '#eef0fe', 'Fall Risk (TUGT)': '#ecfdf5', 'MNA (Malnutrition)': '#fffbeb', 'Modified MSRA-5': '#fffbeb', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#e0e7ff', 'Frail Scale (ความเปราะบาง)': '#e0e7ff' };
+const TYPE_COLORS = { 'Mini-Cog': 'var(--mint-primary)', 'TMSE': 'var(--mint-blue)', 'MoCA': '#8b5cf6', 'MMSE (Mini-Mental State)': '#0d9488', 'Oral Health': '#0891b2', 'Eye Health': '#7c3aed', 'Bone and Joint': '#047857', 'Depression (2Q/9Q)': '#e11d48', 'Suicide Risk (8Q)': '#dc2626', 'TAI (ภาวะพึ่งพิง)': '#4f46e5', 'Fall Risk (TUGT)': '#059669', 'MNA (Malnutrition)': '#d97706', 'Modified MSRA-5': '#d97706', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#4f46e5', 'Frail Scale (ความเปราะบาง)': '#4f46e5' };
+const TYPE_BG = { 'Mini-Cog': 'var(--mint-primary-xl)', 'TMSE': 'var(--mint-blue-xl)', 'MoCA': '#f3e8ff', 'MMSE (Mini-Mental State)': '#f0fdfa', 'Oral Health': '#ecfeff', 'Eye Health': '#f5f3ff', 'Bone and Joint': '#e7f7f1', 'Depression (2Q/9Q)': '#fff1f2', 'Suicide Risk (8Q)': '#fef2f2', 'TAI (ภาวะพึ่งพิง)': '#eef0fe', 'Fall Risk (TUGT)': '#ecfdf5', 'MNA (Malnutrition)': '#fffbeb', 'Modified MSRA-5': '#fffbeb', 'ADL (สมรรถนะกิจวัตรประจำวัน)': '#e0e7ff', 'Frail Scale (ความเปราะบาง)': '#e0e7ff' };
 
 /** ผู้ใช้มักพิมพ์ HN มาพร้อมคำนำหน้าอยู่แล้ว ("HN-00123") เติมซ้ำจะได้ "HN HN-00123" */
 const fmtHN = (hn) => `HN ${String(hn).replace(/^\s*HN[\s:-]*/i, '')}`;
@@ -851,12 +851,12 @@ export default function App() {
   const healthTests = [
     { key: 'oral', title: 'สุขภาพช่องปาก',          sub: 'ประเมินโดยทันตบุคลากร 8 ด้าน',              badge: '8 รายการ',  pal: palette.cyan },
     { key: 'eye',  title: 'สุขภาวะทางตา',           sub: 'ต้อกระจก ต้อหิน จอตาเสื่อม + Snellen Chart', badge: 'ระยะ+ใกล้', pal: palette.cyan },
-    { key: 'osta', title: 'OSTA Index',            sub: 'ประเมินความเสี่ยงโรคกระดูกพรุน',            badge: 'OSTA',      pal: palette.amber },
-    { key: 'frax', title: 'FRAX Score',            sub: 'โอกาสกระดูกหักใน 10 ปี',                    badge: 'FRAX',      pal: palette.amber },
-    { key: 'knee', title: 'การคัดกรองข้อเข่าเสื่อม', sub: 'คัดกรองโรคข้อเข่าเสื่อมทางคลินิก',          badge: 'Knee OA',   pal: palette.amber },
   ];
   const syndromeTests = [
     { key: 'fall', title: 'ความเสี่ยงหกล้ม (TUGT)', sub: 'ทดสอบ Timed Up and Go Test จับเวลา', badge: 'TUGT', pal: palette.green },
+    { key: 'osta', title: 'OSTA Index',            sub: 'ประเมินความเสี่ยงโรคกระดูกพรุน',            badge: 'OSTA',      pal: palette.green },
+    { key: 'frax', title: 'FRAX Score',            sub: 'โอกาสกระดูกหักใน 10 ปี',                    badge: 'FRAX',      pal: palette.green },
+    { key: 'knee', title: 'การคัดกรองข้อเข่าเสื่อม', sub: 'คัดกรองโรคข้อเข่าเสื่อมทางคลินิก',          badge: 'Knee OA',   pal: palette.green },
   ];
   const mentalTests = [
     { key: 'depress', title: 'ภาวะซึมเศร้า (2Q/9Q)', sub: 'คัดกรองด้วย 2Q และประเมินต่อด้วย 9Q',       badge: '2Q, 9Q', pal: palette.rose },
@@ -867,8 +867,8 @@ export default function App() {
     { id: 'cog', title: 'สมรรถภาพสมอง',        sub: 'การรับรู้ ความจำ ความคิด',              tests: cognitiveTests, pal: palette.teal },
     { id: 'nut', title: 'โภชนาการและกล้ามเนื้อ', sub: 'ภาวะขาดสารอาหารและมวลกล้ามเนื้อ',       tests: nutritionTests, pal: palette.amber },
     { id: 'fun', title: 'สมรรถนะเพื่อการดูแล',   sub: 'ADL ความเปราะบาง และภาวะพึ่งพิง',   tests: functionTests,  pal: palette.indigo },
-    { id: 'gen', title: 'สุขภาพทั่วไป',          sub: 'ช่องปาก สายตา กระดูกและข้อ',            tests: healthTests,    pal: palette.cyan },
-    { id: 'syn', title: 'กลุ่มอาการผู้สูงอายุ',    sub: 'แบบคัดกรองความเสี่ยงหกล้ม (TUGT)',      tests: syndromeTests,  pal: palette.green },
+    { id: 'gen', title: 'สุขภาพทั่วไป',          sub: 'ช่องปากและสายตา',            tests: healthTests,    pal: palette.cyan },
+    { id: 'syn', title: 'กลุ่มอาการผู้สูงอายุ',    sub: 'หกล้ม กระดูกพรุน และข้อเข่าเสื่อม',      tests: syndromeTests,  pal: palette.green },
     { id: 'men', title: 'สุขภาพจิต',            sub: 'ภาวะซึมเศร้าและความเสี่ยงฆ่าตัวตาย',  tests: mentalTests,    pal: palette.rose },
   ].map(c => ({ ...c, count: c.tests.length }));
 

@@ -36,10 +36,10 @@
 **🏥 General Health**
 * **Oral Health Assessment** (8 items).
 * **Eye Health & Vision** (Snellen chart integration).
-* **Bone & Joint**: Osteoarthritis, OSTA Index, FRAX Score.
 
 **🚶‍♂️ Geriatric Syndromes**
 * **TUGT** (Timed Up and Go Test) for fall risk.
+* **Bone & Joint**: Osteoarthritis, OSTA Index, FRAX Score.
 
 **❤️‍🩹 Mental Health**
 * **Depression**: 2Q (Screening) & 9Q (Severity).

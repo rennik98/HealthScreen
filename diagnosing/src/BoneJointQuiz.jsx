@@ -7,9 +7,10 @@ const Cross = ({ s = 14, c = 'var(--mint-primary)' }) => (
   </svg>
 );
 
-const BONE_COLOR = '#ea580c';
-const BONE_BG    = '#fff7ed';
-const BONE_BORDER = '#fed7aa';
+// Theme สีเขียว ให้ตรงกับหมวด "กลุ่มอาการผู้สูงอายุ" ที่กระดูกและข้อสังกัดอยู่
+const BONE_COLOR = '#047857';
+const BONE_BG    = '#e7f7f1';
+const BONE_BORDER = '#a3ddc8';
 
 const Section = ({ title, desc, children }) => (
   <div style={{ background: 'white', border: `1.5px solid ${BONE_COLOR}33`, borderRadius: 20, padding: '22px 18px', boxShadow: 'var(--shadow-sm)', position: 'relative', overflow: 'hidden', marginBottom: 16 }}>
@@ -37,7 +38,7 @@ const YN = ({ label, hint, val, onChange, yL = 'ใช่', nL = 'ไม่ใ�
 );
 
 const Topbar = ({ title, onBack }) => (
-  <div style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(255,247,237,0.9)', backdropFilter: 'blur(18px)', borderBottom: `1px solid ${BONE_BORDER}`, padding: '0 16px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+  <div style={{ position: 'sticky', top: 0, zIndex: 50, background: 'rgba(231,247,241,0.9)', backdropFilter: 'blur(18px)', borderBottom: `1px solid ${BONE_BORDER}`, padding: '0 16px', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
     <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--mint-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: '8px 0' }}>← กลับ</button>
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Cross s={14} c={BONE_COLOR} /><span style={{ fontSize: 14, fontWeight: 700, color: 'var(--mint-text)' }}>{title}</span></div>
     <div style={{ width: 40 }} />
@@ -45,7 +46,7 @@ const Topbar = ({ title, onBack }) => (
 );
 
 const SubmitBtn = ({ onClick }) => (
-  <button onClick={onClick} style={{ width: '100%', padding: 14, borderRadius: 13, fontSize: 14, fontWeight: 700, background: `linear-gradient(135deg,${BONE_COLOR},#c2410c)`, color: 'white', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(234,88,12,0.3)', marginTop: 4 }}>
+  <button onClick={onClick} style={{ width: '100%', padding: 14, borderRadius: 13, fontSize: 14, fontWeight: 700, background: `linear-gradient(135deg,${BONE_COLOR},#065f46)`, color: 'white', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(4,120,87,0.3)', marginTop: 4 }}>
     บันทึกและดูผล →
   </button>
 );

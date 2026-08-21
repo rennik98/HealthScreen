@@ -171,7 +171,7 @@ const GROUPS = [
     ),
   },
   {
-    id: 'gen', short: 'สุขภาพทั่วไป', title: 'สุขภาพทั่วไป และ กลุ่มอาการผู้สูงอายุ', pal: palette.cyan,
+    id: 'gen', short: 'สุขภาพทั่วไป', title: 'สุขภาพทั่วไป (ช่องปากและสายตา)', pal: palette.cyan,
     body: (
       <>
             <CriteriaBlock title="สุขภาพช่องปาก และ สุขภาวะทางตา" color="#0891b2">
@@ -186,13 +186,20 @@ const GROUPS = [
                 <li>อ่าน Snellen Chart ได้น้อยกว่าแถวที่ 5 (แย่กว่า 20/40) หรือรู้สึกสายตาแย่ลง</li>
               </ul>
             </CriteriaBlock>
+      </>
+    ),
+  },
+  {
+    id: 'syn', short: 'กลุ่มอาการ', title: 'กลุ่มอาการผู้สูงอายุ', pal: palette.green,
+    body: (
+      <>
 
-            <CriteriaBlock title="โรคทางกระดูกและข้อ (Bone and Joint)" color="#ea580c">
+            <CriteriaBlock title="โรคทางกระดูกและข้อ (Bone and Joint)" color="#047857">
               <p style={{ fontSize: 14, color: 'var(--mint-text2)', lineHeight: 1.7, marginBottom: 14 }}>ประกอบด้วยการประเมิน 3 ส่วนหลัก หากพบความเสี่ยงข้อใดข้อหนึ่งควรพิจารณาส่งต่อ:</p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, marginBottom: 4 }}>
-                <ScoreRow label="OSTA Index" val="≤ -4 = ความเสี่ยงสูง" color="#ea580c" />
-                <ScoreRow label="FRAX Score" val="Major ≥ 20% หรือ Hip ≥ 3%" color="#ea580c" />
-                <ScoreRow label="โรคข้อเข่าเสื่อม" val="ปวดเข่า + พบอาการร่วม ≥ 2 ข้อ" color="#ea580c" />
+                <ScoreRow label="OSTA Index" val="≤ -4 = ความเสี่ยงสูง" color="#047857" />
+                <ScoreRow label="FRAX Score" val="Major ≥ 20% หรือ Hip ≥ 3%" color="#047857" />
+                <ScoreRow label="โรคข้อเข่าเสื่อม" val="ปวดเข่า + พบอาการร่วม ≥ 2 ข้อ" color="#047857" />
               </div>
             </CriteriaBlock>
 
