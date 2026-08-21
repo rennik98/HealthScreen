@@ -72,10 +72,12 @@ body {
   50%      { transform: scale(1.08); opacity: 1; }
 }
 
-.fade-up   { animation: fadeUp  0.4s ease both; }
-.fade-up-1 { animation: fadeUp  0.4s ease 0.06s both; }
-.fade-up-2 { animation: fadeUp  0.4s ease 0.12s both; }
-.fade-up-3 { animation: fadeUp  0.4s ease 0.18s both; }
+/* ใช้ backwards ไม่ใช่ both — both ทิ้ง transform: translateY(0) ไว้หลังอนิเมชันจบ
+   ซึ่งกลายเป็น containing block ทำให้ลูกที่เป็น position:fixed หลุดจากจอ */
+.fade-up   { animation: fadeUp  0.4s ease backwards; }
+.fade-up-1 { animation: fadeUp  0.4s ease 0.06s backwards; }
+.fade-up-2 { animation: fadeUp  0.4s ease 0.12s backwards; }
+.fade-up-3 { animation: fadeUp  0.4s ease 0.18s backwards; }
 .scale-in  { animation: scaleIn 0.3s ease both; }
 
 /* เคารพการตั้งค่าลดการเคลื่อนไหวของระบบ */

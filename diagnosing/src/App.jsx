@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { saveLocalResult, loadLocalResults } from './shared/quizStorage';
 import { toSheetPayload, fromSheetRow, newResultId, parseThaiDatetime, COL as SHEET_COL } from './shared/sheetSchema';
-import { ChevronRight, Home, ClipboardList, BookOpen, RefreshCw, UploadCloud, Printer, Download, Search, SlidersHorizontal, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { X, ChevronRight, Home, ClipboardList, BookOpen, RefreshCw, UploadCloud, Printer, Download, Search, SlidersHorizontal, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { CategoryIcon, TestIcon } from './shared/icons';
 import CriteriaPage from './CriteriaPage';
 import { text, radius, shadow, ui, palette, clamp } from './shared/theme';
@@ -300,41 +301,78 @@ const ResultSummaryModal = ({ result, patient, onClose, onViewAll, onContinue })
 };
 
 const ResultDetailModal = ({ result, onClose }) => {
+  // ปิดด้วย Escape และล็อกไม่ให้พื้นหลังเลื่อนขณะเปิดอยู่
+  useEffect(() => {
+    if (!result) return;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    // ล็อกที่ <html> ไม่ใช่ <body> — ล็อกที่ body ทำให้ความสูงที่เลื่อนได้กลายเป็น 0
+    // แล้วเบราว์เซอร์รีเซ็ตตำแหน่งสกรอลล์ พอปิด popup ผู้ใช้จะเด้งกลับไปบนสุดของรายการ
+    const html = document.documentElement;
+    const prevOverflow = html.style.overflow;
+    html.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      html.style.overflow = prevOverflow;
+    };
+  }, [result, onClose]);
+
   if (!result) return null;
-  const bd = result.breakdown ?? {};
-  const entries = Object.entries(bd);
-  const tc = TYPE_COLORS[result.type] || 'var(--mint-primary)';
+  const entries = Object.entries(result.breakdown ?? {});
+  const tc = TYPE_COLORS[result.type] || 'var(--mint-primary-d)';
   const tcBg = TYPE_BG[result.type] || 'var(--mint-primary-xl)';
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(15,43,40,0.6)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, overflowY: 'auto' }}>
-      <div style={{ background: 'white', borderRadius: 22, width: '100%', maxWidth: 520, boxShadow: '0 24px 80px rgba(14,159,142,0.2)', border: '1.5px solid var(--mint-border)', animation: 'scaleIn 0.28s ease both', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--mint-border2)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0, background: tcBg }}>
-          <div>
-            <p style={{ fontSize: 15, fontWeight: 800, color: 'var(--mint-text)' }}>{result.name}{result.hn ? <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--mint-muted)', marginLeft: 8 }}>HN: {result.hn}</span> : ''}</p>
-            <p style={{ fontSize: 12, color: tc, fontWeight: 600, marginTop: 3 }}>{result.type}</p>
-            <p style={{ fontSize: 11, color: 'var(--mint-muted)', marginTop: 2 }}>{result.datetime}</p>
+
+  /*
+   * ส่งผ่าน portal ไปที่ body เพราะหน้าที่เรียกใช้อยู่ใน .fade-up ซึ่งมี transform ค้างอยู่
+   * transform ที่ไม่ใช่ none ทำให้ position:fixed ไปยึดกับ element นั้นแทนที่จะยึดกับจอ
+   * popup เลยไปโผล่กลางรายการที่ยาวเป็นพัน ๆ px แทนที่จะอยู่กลางจอ
+   */
+  return createPortal(
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(12,39,35,0.55)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{ background: 'white', borderRadius: radius.xl, width: '100%', maxWidth: 520, boxShadow: shadow.lg, border: `1.5px solid ${ui.border}`, animation: 'scaleIn 0.25s ease both', maxHeight: 'min(80vh, 640px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+      >
+        <div style={{ padding: '16px 18px', borderBottom: `1px solid ${ui.border2}`, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, flexShrink: 0, background: tcBg }}>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ ...text.h3, color: ui.text, ...clamp(1) }}>{result.name}</p>
+            <p style={{ ...text.small, color: tc, fontWeight: 700, marginTop: 3 }}>{result.type}</p>
+            <p style={{ ...text.small, color: ui.muted, marginTop: 1 }}>
+              {result.datetime}{result.hn ? ` · ${fmtHN(result.hn)}` : ''}
+            </p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: 'var(--mint-muted)', lineHeight: 1, flexShrink: 0 }}>×</button>
+          <button onClick={onClose} aria-label="ปิด" style={{ background: 'rgba(255,255,255,0.7)', border: `1px solid ${ui.border}`, borderRadius: radius.sm, cursor: 'pointer', color: ui.text2, flexShrink: 0, width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <X size={19} strokeWidth={2.4} />
+          </button>
         </div>
-        <div style={{ overflowY: 'auto', padding: '16px 24px 8px', flex: 1 }}>
+
+        <div style={{ overflowY: 'auto', padding: '14px 18px', flex: 1 }}>
           {entries.length === 0 ? (
-            <p style={{ fontSize: 13, color: 'var(--mint-muted)', textAlign: 'center', padding: '32px 0', lineHeight: 1.8 }}>ไม่มีข้อมูลรายละเอียด<br/><span style={{ fontSize: 11 }}>(ผลที่บันทึกก่อนอัปเดตระบบ หรือโหลดจาก Google Sheets)</span></p>
+            <p style={{ ...text.small, color: ui.muted, textAlign: 'center', padding: '28px 0' }}>
+              ไม่มีข้อมูลรายละเอียด<br/>
+              <span style={{ ...text.label, fontWeight: 500 }}>(ผลที่บันทึกก่อนอัปเดตระบบ หรือโหลดจาก Google Sheets)</span>
+            </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
               {entries.map(([k, v]) => (
-                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '9px 12px', background: 'var(--mint-surface2)', border: '1px solid var(--mint-border2)', borderRadius: 10, gap: 12 }}>
-                  <span style={{ fontSize: 12, color: 'var(--mint-text2)', flex: 1, lineHeight: 1.5 }}>{k}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: tc, flexShrink: 0 }}>{String(v)}</span>
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '10px 12px', background: ui.surface2, border: `1px solid ${ui.border2}`, borderRadius: radius.sm, gap: 12 }}>
+                  <span style={{ ...text.small, color: ui.text2, flex: 1 }}>{k}</span>
+                  <span style={{ ...text.small, fontWeight: 700, color: tc, flexShrink: 0, textAlign: 'right' }}>{String(v)}</span>
                 </div>
               ))}
             </div>
           )}
         </div>
-        <div style={{ padding: '14px 24px 18px', borderTop: '1px solid var(--mint-border2)', flexShrink: 0 }}>
-          <button onClick={onClose} style={{ width: '100%', padding: '11px', borderRadius: 12, fontSize: 14, fontWeight: 700, background: 'var(--mint-surface2)', border: '1.5px solid var(--mint-border)', color: 'var(--mint-text2)', cursor: 'pointer' }}>ปิด</button>
+
+        <div style={{ padding: '12px 18px', borderTop: `1px solid ${ui.border2}`, flexShrink: 0 }}>
+          <button onClick={onClose} style={{ width: '100%', padding: '12px', borderRadius: radius.md, ...text.bodyStrong, fontWeight: 700, background: ui.surface2, border: `1.5px solid ${ui.border}`, color: ui.text2, cursor: 'pointer', minHeight: 46 }}>ปิด</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 
